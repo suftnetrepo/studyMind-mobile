@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "StudyMind AI",
+    "slug": "studymind-ai",
+    "version": "1.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.suftnet.studymind",
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#5B7FFF"
+      },
+      "package": "com.suftnet.studymind",
+      "versionCode": 1
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "StudyMind uses your photo library to upload study documents.",
+          "cameraPermission": "StudyMind uses the camera to capture document pages."
+        }
+      ],
+      "expo-font"
+    ],
+    "scheme": "studymind",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
