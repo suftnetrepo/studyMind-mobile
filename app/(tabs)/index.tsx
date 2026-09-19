@@ -3,7 +3,7 @@ import { Platform } from 'react-native'
 import { router } from 'expo-router'
 import {
   StyledPage, StyledScrollView, Stack,
-  StyledCard, StyledPressable, StyledButton,
+  StyledCard, StyledPressable, StyledButton, useToast,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { useColors, useIsDark, getModuleColors, TOOLS } from '../../src/constants'
@@ -25,8 +25,9 @@ export default function HomeScreen() {
   const C      = useColors()
   const isDark = useIsDark()
   const user   = useAuthStore((s) => s.user)
-  const { setActiveModule } = useModuleStore()
+  const { activeModuleId, setActiveModule } = useModuleStore()
   const { data: modules, loading } = useModules()
+  const toast = useToast()
   const hour = new Date().getHours()
 
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -35,6 +36,17 @@ export default function HomeScreen() {
   const openModule = (mod: any, idx: number) => {
     setActiveModule(mod.id, mod.title, mod.course_code)
     router.push(`/module/${mod.id}`)
+  }
+
+  const handleToolPress = (toolKey: string) => {
+    if (!activeModuleId) {
+      toast.warning(
+        'Select a module first',
+        'Open a module before using AI tools.',
+      )
+      return
+    }
+    router.push(`/${toolKey}` as any)
   }
 
   return (
@@ -171,7 +183,7 @@ export default function HomeScreen() {
             return (
               <StyledPressable
                 key={tool.key} style={{ width: '47%' }}
-                onPress={() => router.push(`/${tool.key}` as any)}
+                onPress={() => handleToolPress(tool.key)}
               >
                 <StyledCard
                   backgroundColor={C.bgCard} borderRadius={18} padding={16}

@@ -1,15 +1,18 @@
 import React from 'react'
 import { Platform } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
+import * as DocumentPicker from 'expo-document-picker'
 import {
   StyledPage, StyledScrollView, Stack,
-  StyledCard, StyledPressable, StyledButton, TabBar, type TabItem,
+  StyledCard, StyledPressable, StyledButton, TabBar, type TabItem, useToast,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { useColors, useIsDark, getModuleColors, TOOLS } from '../../src/constants'
-import { useModuleStore } from '../../src/stores'
+import { useModuleStore, useAuthStore } from '../../src/stores'
 import { useModuleDetail } from '../../src/hooks'
+import { useNotes } from '../../src/hooks/useNotes'
 
 type TabKey = 'overview' | 'documents' | 'chat'
 const TABS: TabItem<TabKey>[] = [
@@ -18,29 +21,70 @@ const TABS: TabItem<TabKey>[] = [
   { value: 'chat',      label: 'Chat'      },
 ]
 
-const FILE_EMOJI: Record<string, string> = {
-  pdf: '📕', docx: '📄', txt: '📃', md: '📝', csv: '📊',
+const FILE_ICON: Record<string, keyof typeof Feather.glyphMap> = {
+  pdf: 'file-text', docx: 'file-text', txt: 'file', md: 'file-text', csv: 'bar-chart-2',
 }
 
 const TOOL_META = {
-  chat:       { emoji: '💬', label: 'AI Tutor',   desc: 'Ask questions',    color: 'chatColor',  bg: 'chatBg'  },
-  quiz:       { emoji: '📝', label: 'AI Quiz',    desc: 'Test yourself',    color: 'quizColor',  bg: 'quizBg'  },
-  flashcards: { emoji: '🃏', label: 'Flashcards', desc: 'Memorise terms',   color: 'flashColor', bg: 'flashBg' },
-  summary:    { emoji: '📋', label: 'AI Summary', desc: 'Get an overview',  color: 'sumColor',   bg: 'sumBg'   },
-} as const
+  chat:       { icon: 'message-circle', label: 'AI Tutor',   desc: 'Ask questions',    color: 'chatColor',  bg: 'chatBg'  },
+  quiz:       { icon: 'help-circle',    label: 'AI Quiz',    desc: 'Test yourself',    color: 'quizColor',  bg: 'quizBg'  },
+  flashcards: { icon: 'credit-card',    label: 'Flashcards', desc: 'Memorise terms',   color: 'flashColor', bg: 'flashBg' },
+  summary:    { icon: 'clipboard',      label: 'AI Summary', desc: 'Get an overview',  color: 'sumColor',   bg: 'sumBg'   },
+} as const satisfies Record<string, { icon: keyof typeof Feather.glyphMap; label: string; desc: string; color: string; bg: string }>
 
 export default function ModuleDetailScreen() {
   const C      = useColors()
   const isDark = useIsDark()
   const { id } = useLocalSearchParams<{ id: string }>()
   const { activeModuleTitle, activeCourseCode, setActiveModule } = useModuleStore()
+  const user = useAuthStore((s) => s.user)
+  const isLecturer = user?.role === 'lecturer' || user?.role === 'admin'
   const [tab, setTab] = React.useState<TabKey>('overview')
 
-  const { module, documents, loading } = useModuleDetail(id || null)
+  const {
+    module, documents, sessions, loading, uploadDocument, deleteDocument,
+  } = useModuleDetail(id || null)
+  const { notes } = useNotes(id || null)
+  const toast = useToast()
 
   const mc       = getModuleColors(C, 0)
-  const classDocs    = documents.filter((d) => d.visibility === 'class')
-  const personalDocs = documents.filter((d) => d.visibility === 'personal')
+  const classDocs = documents.filter((d) => d.visibility === 'class')
+  const myNotes   = documents.filter((d) => d.visibility === 'personal')
+
+  const handleUpload = async (visibility: 'class' | 'personal') => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf', 'text/plain', 'text/markdown'],
+      copyToCacheDirectory: true,
+    })
+    if (result.canceled) return
+    const file = result.assets[0]
+    const success = await uploadDocument(
+      { uri: file.uri, name: file.name, type: file.mimeType || 'application/pdf' },
+      visibility,
+    )
+    if (success) {
+      toast.success(
+        visibility === 'personal' ? 'Notes uploaded!' : 'Material uploaded!',
+        visibility === 'personal'
+          ? 'Your notes have been indexed and are ready to use.'
+          : 'The document has been indexed and is now available to the class.',
+      )
+    }
+  }
+
+  const handleScan = () => {
+    toast.info('Coming soon', 'Camera scanning coming soon')
+  }
+
+  // Quiz/flashcards/summary generation always draws from both class and
+  // personal materials — the backend has no personal-only retrieval mode
+  // for those three (only chat's scope_mode supports it). So only the chat
+  // quick action can honestly promise "my notes only"; see chat's
+  // ?scope=personal_only below.
+  const handleQuickAction = (toolKey: string) => {
+    if (module) setActiveModule(module.id, module.title, module.course_code)
+    router.push((toolKey === 'chat' ? '/chat?scope=personal_only' : `/${toolKey}`) as any)
+  }
 
   return (
     <StyledPage flex={1} backgroundColor={C.bg} showStatusBar
@@ -102,7 +146,7 @@ export default function ModuleDetailScreen() {
               <Stack horizontal gap={10} marginTop={18}>
                 {[
                   { value: classDocs.length,    label: 'Class docs' },
-                  { value: personalDocs.length, label: 'My notes'   },
+                  { value: myNotes.length,      label: 'My notes'   },
                   { value: documents.reduce((a, d) => a + (d.chunk_count || 0), 0), label: 'Chunks' },
                 ].map((stat) => (
                   <Stack
@@ -147,7 +191,7 @@ export default function ModuleDetailScreen() {
                           backgroundColor={bg} alignItems="center" justifyContent="center"
                           marginBottom={12}
                         >
-                          <Text style={{ fontSize: 22 }}>{meta.emoji}</Text>
+                          <Feather name={meta.icon} size={22} color={color} />
                         </Stack>
                         <Text variant="label" color={C.textPrimary} fontWeight="700">
                           {meta.label}
@@ -165,11 +209,11 @@ export default function ModuleDetailScreen() {
         )}
 
         {/* ── Documents ────────────────────────────────────────────────── */}
-        {tab === 'documents' && (
+        {tab === 'documents' && isLecturer && (
           <Stack gap={14}>
             <StyledButton
               backgroundColor={C.primary} borderRadius={14} paddingVertical={14}
-              onPress={() => {}}
+              onPress={() => handleUpload('class')}
               style={{
                 shadowColor: C.primary, shadowOpacity: 0.3,
                 shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5,
@@ -188,12 +232,8 @@ export default function ModuleDetailScreen() {
               </Stack>
             )}
 
-            {/* Class materials */}
             {classDocs.length > 0 && (
-              <Stack gap={6}>
-                <Text variant="overline" color={C.textSecondary} marginBottom={4}>
-                  Class materials
-                </Text>
+              <Stack gap={10}>
                 {classDocs.map((doc) => (
                   <StyledCard key={doc.id} backgroundColor={C.bgCard} borderRadius={14} padding={14}
                     style={{ borderWidth: 1, borderColor: C.border }}
@@ -203,9 +243,136 @@ export default function ModuleDetailScreen() {
                         width={42} height={42} borderRadius={12}
                         backgroundColor={C.primaryBg} alignItems="center" justifyContent="center"
                       >
-                        <Text style={{ fontSize: 18 }}>
-                          {FILE_EMOJI[doc.file_type] || '📄'}
-                        </Text>
+                        <Feather name={FILE_ICON[doc.file_type] || 'file'} size={18} color={C.primary} />
+                      </Stack>
+                      <Stack flex={1} gap={4}>
+                        <Text variant="label" color={C.textPrimary} fontWeight="600"
+                          numberOfLines={1}
+                        >{doc.filename}</Text>
+                        <Stack horizontal alignItems="center" gap={8}>
+                          <Stack
+                            backgroundColor={C.successBg} borderRadius={6}
+                            paddingHorizontal={7} paddingVertical={2}
+                          >
+                            <Text variant="caption" color={C.success} fontWeight="700"
+                              style={{ fontSize: 9 }}
+                            >● indexed</Text>
+                          </Stack>
+                          <Text variant="caption" color={C.textMuted}>
+                            {doc.chunk_count} chunks
+                          </Text>
+                          {doc.version > 1 && (
+                            <Stack
+                              backgroundColor={C.bgMuted} borderRadius={6}
+                              paddingHorizontal={7} paddingVertical={2}
+                            >
+                              <Text variant="caption" color={C.textSecondary} fontWeight="700"
+                                style={{ fontSize: 9 }}
+                              >v{doc.version}</Text>
+                            </Stack>
+                          )}
+                        </Stack>
+                      </Stack>
+                      <StyledPressable
+                        onPress={() => deleteDocument(doc.id, doc.filename)}
+                        width={32} height={32} borderRadius={10}
+                        alignItems="center" justifyContent="center"
+                      >
+                        <Feather name="trash-2" size={16} color={C.textMuted} />
+                      </StyledPressable>
+                    </Stack>
+                  </StyledCard>
+                ))}
+              </Stack>
+            )}
+
+            {!loading && classDocs.length === 0 && (
+              <StyledCard backgroundColor={C.bgCard} borderRadius={18} padding={28}
+                alignItems="center" gap={10}
+                style={{ borderWidth: 1, borderColor: C.border }}
+              >
+                <Feather name="folder" size={36} color={C.textMuted} />
+                <Text variant="subtitle" color={C.textPrimary} fontWeight="700">No materials yet</Text>
+                <Text variant="body" color={C.textSecondary} textAlign="center">
+                  Upload lecture slides, notes, or handouts to get started.
+                </Text>
+              </StyledCard>
+            )}
+          </Stack>
+        )}
+
+        {tab === 'documents' && !isLecturer && (
+          <Stack gap={14}>
+            <Text variant="overline" color={C.textSecondary}>My study notes</Text>
+
+            <StyledPressable onPress={() => router.push('/notes')}>
+              <StyledCard backgroundColor={C.bgCard} borderRadius={16} padding={14}
+                style={{ borderWidth: 1, borderColor: C.border }}
+              >
+                <Stack horizontal alignItems="center" gap={12}>
+                  <Stack width={42} height={42} borderRadius={12}
+                    backgroundColor={C.flashBg} alignItems="center" justifyContent="center"
+                  >
+                    <Feather name="edit-3" size={19} color={C.flashColor} />
+                  </Stack>
+                  <Stack flex={1}>
+                    <Text variant="label" color={C.textPrimary} fontWeight="700">My Notes</Text>
+                    <Text variant="caption" color={C.textSecondary}>
+                      {notes.length} note{notes.length !== 1 ? 's' : ''} · tap to write or view
+                    </Text>
+                  </Stack>
+                  <Text style={{ fontSize: 16, color: C.textMuted }}>›</Text>
+                </Stack>
+              </StyledCard>
+            </StyledPressable>
+
+            <Stack horizontal gap={10}>
+              <StyledButton
+                flex={1}
+                backgroundColor={C.flashColor} borderRadius={14} paddingVertical={14}
+                onPress={() => handleUpload('personal')}
+                style={{
+                  shadowColor: C.flashColor, shadowOpacity: 0.3,
+                  shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5,
+                }}
+              >
+                <Stack horizontal alignItems="center" justifyContent="center" gap={7}>
+                  <Feather name="upload" size={15} color={C.white} />
+                  <Text variant="button" color={C.white}>Upload notes</Text>
+                </Stack>
+              </StyledButton>
+              <StyledPressable
+                onPress={handleScan}
+                backgroundColor={C.bgCard} borderRadius={14} paddingVertical={14}
+                alignItems="center" justifyContent="center"
+                style={{ width: 60, borderWidth: 1, borderColor: C.border }}
+              >
+                <Feather name="camera" size={18} color={C.textPrimary} />
+              </StyledPressable>
+            </Stack>
+
+            {loading && (
+              <Stack gap={10}>
+                {[1, 2, 3].map((i) => (
+                  <Stack key={i} height={72} backgroundColor={C.bgMuted} borderRadius={14}
+                    style={{ opacity: 0.4 }}
+                  />
+                ))}
+              </Stack>
+            )}
+
+            {myNotes.length > 0 && (
+              <Stack gap={10}>
+                {myNotes.map((doc) => (
+                  <StyledCard key={doc.id} backgroundColor={C.bgCard} borderRadius={14} padding={14}
+                    style={{ borderWidth: 1, borderColor: C.border }}
+                  >
+                    <Stack horizontal alignItems="center" gap={12}>
+                      <Stack
+                        width={42} height={42} borderRadius={12}
+                        backgroundColor={C.flashBg} alignItems="center" justifyContent="center"
+                      >
+                        <Feather name={FILE_ICON[doc.file_type] || 'file'} size={18} color={C.flashColor} />
                       </Stack>
                       <Stack flex={1} gap={4}>
                         <Text variant="label" color={C.textPrimary} fontWeight="600"
@@ -225,67 +392,65 @@ export default function ModuleDetailScreen() {
                           </Text>
                         </Stack>
                       </Stack>
-                    </Stack>
-                  </StyledCard>
-                ))}
-              </Stack>
-            )}
-
-            {/* Personal notes */}
-            {personalDocs.length > 0 && (
-              <Stack gap={6}>
-                <Text variant="overline" color={C.textSecondary} marginBottom={4} marginTop={8}>
-                  My personal notes
-                </Text>
-                {personalDocs.map((doc) => (
-                  <StyledCard key={doc.id} backgroundColor={C.bgCard} borderRadius={14} padding={14}
-                    style={{ borderWidth: 1, borderColor: C.border }}
-                  >
-                    <Stack horizontal alignItems="center" gap={12}>
-                      <Stack
-                        width={42} height={42} borderRadius={12}
-                        backgroundColor={C.flashBg} alignItems="center" justifyContent="center"
+                      <StyledPressable
+                        onPress={() => deleteDocument(doc.id, doc.filename)}
+                        width={32} height={32} borderRadius={10}
+                        alignItems="center" justifyContent="center"
                       >
-                        <Text style={{ fontSize: 18 }}>
-                          {FILE_EMOJI[doc.file_type] || '📄'}
-                        </Text>
-                      </Stack>
-                      <Stack flex={1} gap={4}>
-                        <Text variant="label" color={C.textPrimary} fontWeight="600"
-                          numberOfLines={1}
-                        >{doc.filename}</Text>
-                        <Stack horizontal alignItems="center" gap={8}>
-                          <Stack
-                            backgroundColor={C.flashBg} borderRadius={6}
-                            paddingHorizontal={7} paddingVertical={2}
-                          >
-                            <Text variant="caption" color={C.flashColor} fontWeight="700"
-                              style={{ fontSize: 9 }}
-                            >🔒 private</Text>
-                          </Stack>
-                          <Text variant="caption" color={C.textMuted}>
-                            {doc.chunk_count} chunks
-                          </Text>
-                        </Stack>
-                      </Stack>
+                        <Feather name="trash-2" size={16} color={C.textMuted} />
+                      </StyledPressable>
                     </Stack>
                   </StyledCard>
                 ))}
               </Stack>
             )}
 
-            {!loading && documents.length === 0 && (
+            {!loading && myNotes.length === 0 && (
               <StyledCard backgroundColor={C.bgCard} borderRadius={18} padding={28}
                 alignItems="center" gap={10}
                 style={{ borderWidth: 1, borderColor: C.border }}
               >
-                <Text style={{ fontSize: 36 }}>📂</Text>
-                <Text variant="subtitle" color={C.textPrimary} fontWeight="700">No documents yet</Text>
+                <Feather name="folder" size={36} color={C.textMuted} />
+                <Text variant="subtitle" color={C.textPrimary} fontWeight="700">No notes yet</Text>
                 <Text variant="body" color={C.textSecondary} textAlign="center">
-                  Upload lecture slides, notes, or handouts to get started.
+                  Upload your own notes to study alongside the class materials.
                 </Text>
               </StyledCard>
             )}
+
+            <Text variant="overline" color={C.textSecondary} marginTop={8}>
+              Use my notes with AI
+            </Text>
+            <Stack style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              {TOOLS.map((tool) => {
+                const meta  = TOOL_META[tool.key as keyof typeof TOOL_META]
+                const color = C[meta.color as keyof typeof C] as string
+                const bg    = C[meta.bg as keyof typeof C] as string
+                return (
+                  <StyledPressable
+                    key={tool.key} style={{ width: '47%' }}
+                    onPress={() => handleQuickAction(tool.key)}
+                  >
+                    <StyledCard
+                      backgroundColor={C.bgCard} borderRadius={16} padding={14}
+                      style={{ borderWidth: 1, borderColor: C.border }}
+                    >
+                      <Stack horizontal alignItems="center" gap={10}>
+                        <Stack
+                          width={36} height={36} borderRadius={11}
+                          backgroundColor={bg} alignItems="center" justifyContent="center"
+                        >
+                          <Feather name={meta.icon} size={17} color={color} />
+                        </Stack>
+                        <Text variant="label" color={C.textPrimary} fontWeight="700" style={{ flex: 1 }}>
+                          {meta.label.replace('AI ', '')}
+                        </Text>
+                      </Stack>
+                    </StyledCard>
+                  </StyledPressable>
+                )
+              })}
+            </Stack>
           </Stack>
         )}
 
@@ -306,33 +471,48 @@ export default function ModuleDetailScreen() {
               <Text variant="button" color={C.white}>+ New conversation</Text>
             </StyledButton>
 
-            {/* Recent session placeholders */}
-            {['What are the key topics in this module?', 'Explain the main concepts from Week 3'].map((title, i) => (
-              <StyledPressable key={i} onPress={() => {
-                if (module) setActiveModule(module.id, module.title, module.course_code)
-                router.push('/chat')
-              }}>
-                <StyledCard backgroundColor={C.bgCard} borderRadius={14} padding={14}
-                  style={{ borderWidth: 1, borderColor: C.border }}
-                >
-                  <Stack horizontal alignItems="center" gap={12}>
-                    <Stack
-                      width={40} height={40} borderRadius={12}
-                      backgroundColor={C.chatBg} alignItems="center" justifyContent="center"
-                    >
-                      <Text style={{ fontSize: 18 }}>💬</Text>
+            {/* Recent sessions */}
+            {sessions.length === 0 ? (
+              <StyledCard backgroundColor={C.bgCard} borderRadius={18} padding={28}
+                alignItems="center" gap={10}
+                style={{ borderWidth: 1, borderColor: C.border }}
+              >
+                <Feather name="message-circle" size={36} color={C.textMuted} />
+                <Text variant="subtitle" color={C.textPrimary} fontWeight="700">No conversations yet</Text>
+                <Text variant="body" color={C.textSecondary} textAlign="center">
+                  Start a new conversation to ask about this module's materials.
+                </Text>
+              </StyledCard>
+            ) : (
+              sessions.map((session) => (
+                <StyledPressable key={session.id} onPress={() => {
+                  if (module) setActiveModule(module.id, module.title, module.course_code)
+                  router.push(`/chat?sessionId=${session.id}`)
+                }}>
+                  <StyledCard backgroundColor={C.bgCard} borderRadius={14} padding={14}
+                    style={{ borderWidth: 1, borderColor: C.border }}
+                  >
+                    <Stack horizontal alignItems="center" gap={12}>
+                      <Stack
+                        width={40} height={40} borderRadius={12}
+                        backgroundColor={C.chatBg} alignItems="center" justifyContent="center"
+                      >
+                        <Feather name="message-circle" size={18} color={C.chatColor} />
+                      </Stack>
+                      <Stack flex={1} gap={4}>
+                        <Text variant="label" color={C.textPrimary} fontWeight="600"
+                          numberOfLines={1}
+                        >{session.title || 'Conversation'}</Text>
+                        <Text variant="caption" color={C.textSecondary}>
+                          {session.message_count ?? 0} messages
+                        </Text>
+                      </Stack>
+                      <Text style={{ fontSize: 16, color: C.textMuted }}>›</Text>
                     </Stack>
-                    <Stack flex={1} gap={4}>
-                      <Text variant="label" color={C.textPrimary} fontWeight="600"
-                        numberOfLines={1}
-                      >{title}</Text>
-                      <Text variant="caption" color={C.textSecondary}>Today · 3 messages</Text>
-                    </Stack>
-                    <Text style={{ fontSize: 16, color: C.textMuted }}>›</Text>
-                  </Stack>
-                </StyledCard>
-              </StyledPressable>
-            ))}
+                  </StyledCard>
+                </StyledPressable>
+              ))
+            )}
           </Stack>
         )}
       </StyledScrollView>

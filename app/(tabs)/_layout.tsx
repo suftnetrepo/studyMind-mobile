@@ -53,6 +53,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="notes-tab"
+        options={{
+          title:      'Notes',
+          tabBarIcon: ({ color, focused }) => <Icon emoji="📝" color={color} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title:      'Profile',

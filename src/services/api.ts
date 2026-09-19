@@ -203,6 +203,8 @@ export const moduleService = {
     form.append('file', { uri: file.uri, name: file.name, type: file.type } as any)
     return api.postForm<any>(`/api/modules/${moduleId}/documents?visibility=${visibility}`, form)
   },
+  deleteDocument: (moduleId: string, documentId: string) =>
+    api.delete(`/api/modules/${moduleId}/documents/${documentId}`),
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
@@ -221,8 +223,14 @@ export const chatService = {
 
 // ─── Quiz ─────────────────────────────────────────────────────────────────────
 export const quizService = {
-  generate: (moduleId: string, questionCount = 5, questionType = 'mcq') =>
-    api.post<any>('/api/quiz/generate', { module_id: moduleId, question_count: questionCount, question_type: questionType }),
+  generate: (moduleId: string, questionCount = 5, questionType = 'mcq', title?: string, topic?: string) =>
+    api.post<any>('/api/quiz/generate', {
+      module_id:      moduleId,
+      question_count: questionCount,
+      question_type:  questionType,
+      title,
+      topic,
+    }),
   get:    (id: string) => api.get<any>(`/api/quiz/${id}`),
   submit: (id: string, answers: { question_id: string; answer: string }[]) =>
     api.post<any>(`/api/quiz/${id}/submit`, { answers }),
@@ -232,8 +240,8 @@ export const quizService = {
 
 // ─── Flashcards ───────────────────────────────────────────────────────────────
 export const flashcardService = {
-  generate:   (moduleId: string, maxCards = 20) =>
-    api.post<any>('/api/flashcards/generate', { module_id: moduleId, max_cards: maxCards }),
+  generate:   (moduleId: string, maxCards = 20, topic?: string) =>
+    api.post<any>('/api/flashcards/generate', { module_id: moduleId, max_cards: maxCards, topic }),
   list:       (moduleId?: string) =>
     api.get<any[]>(`/api/flashcards${moduleId ? `?module_id=${moduleId}` : ''}`),
   getDeck:    (deckId: string) => api.get<any>(`/api/flashcards/${deckId}`),
@@ -243,8 +251,8 @@ export const flashcardService = {
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 export const summaryService = {
-  generate: (moduleId: string, scope: 'document' | 'week' | 'module' = 'module') =>
-    api.post<any>('/api/summarise', { module_id: moduleId, scope }),
+  generate: (moduleId: string, scope: 'document' | 'week' | 'module' = 'module', topic?: string) =>
+    api.post<any>('/api/summarise', { module_id: moduleId, scope, topic }),
   list:     (moduleId?: string) =>
     api.get<any[]>(`/api/summarise${moduleId ? `?module_id=${moduleId}` : ''}`),
   get:      (id: string) => api.get<any>(`/api/summarise/${id}`),

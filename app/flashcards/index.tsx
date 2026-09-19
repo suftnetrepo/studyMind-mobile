@@ -1,5 +1,5 @@
 import React from 'react'
-import { Platform } from 'react-native'
+import { Platform, TextInput } from 'react-native'
 import { router } from 'expo-router'
 import {
   StyledPage, StyledScrollView, Stack,
@@ -8,6 +8,7 @@ import {
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { EmptyState } from '../../src/components/EmptyState'
+import { RichText } from '../../src/components/RichText'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { useFlashcards } from '../../src/hooks'
@@ -20,6 +21,7 @@ export default function FlashcardsScreen() {
   const { activeModuleId, activeCourseCode, activeModuleTitle } = useModuleStore()
 
   const [maxCards, setMaxCards] = React.useState(20)
+  const [topic,    setTopic]    = React.useState('')
 
   const {
     deck, decks, cardIdx, flipped, currentCard,
@@ -143,9 +145,36 @@ export default function FlashcardsScreen() {
                 </>
               )}
 
+              {/* Topic */}
+              <Stack gap={8} marginBottom={24}>
+                <Text variant="label" color={C.textPrimary} fontWeight="700">
+                  Topic (optional)
+                </Text>
+                <Stack
+                  backgroundColor={C.bgInput} borderRadius={14}
+                  borderWidth={1} borderColor={C.border}
+                  paddingHorizontal={16} paddingVertical={12}
+                >
+                  <TextInput
+                    value={topic}
+                    onChangeText={setTopic}
+                    placeholder="e.g. Python data types, React Native hooks, TypeScript generics"
+                    placeholderTextColor={C.textMuted}
+                    style={{
+                      color:      C.textPrimary,
+                      fontSize:   14,
+                      fontFamily: 'PlusJakartaSans_400Regular',
+                    }}
+                  />
+                </Stack>
+                <Text variant="caption" color={C.textSecondary}>
+                  Leave blank to cover all topics in this module
+                </Text>
+              </Stack>
+
               <StyledButton
                 backgroundColor={C.flashColor} borderRadius={16} paddingVertical={17}
-                loading={generating} onPress={() => generate(maxCards)}
+                loading={generating} onPress={() => generate(maxCards, topic || undefined)}
                 style={{
                   shadowColor: C.flashColor, shadowOpacity: 0.4,
                   shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 8,
@@ -227,18 +256,21 @@ export default function FlashcardsScreen() {
               </Text>
             </Stack>
 
-            <Text
-              variant={flipped ? 'body' : 'title'}
-              color={C.textPrimary}
-              fontWeight={flipped ? '400' : '700'}
-              textAlign="center"
-              style={{
-                lineHeight: flipped ? 24 : 30,
-                marginBottom: 16,
-              }}
-            >
-              {flipped ? currentCard?.back : currentCard?.front}
-            </Text>
+            {flipped ? (
+              <Stack style={{ width: '100%', marginBottom: 16 }}>
+                <RichText content={currentCard?.back || ''} fontSize={13} />
+              </Stack>
+            ) : (
+              <Text
+                variant="title"
+                color={C.textPrimary}
+                fontWeight="700"
+                textAlign="center"
+                style={{ lineHeight: 30, marginBottom: 16 }}
+              >
+                {currentCard?.front}
+              </Text>
+            )}
 
             <Stack horizontal alignItems="center" gap={6}>
               <Stack

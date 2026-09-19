@@ -138,8 +138,10 @@ export function useModules() {
 export function useModuleDetail(moduleId: string | null) {
   const [module,    setModule]    = useState<any>(null)
   const [documents, setDocuments] = useState<any[]>([])
+  const [sessions,  setSessions]  = useState<any[]>([])
   const [loading,   setLoading]   = useState(false)
   const toast    = useToast()
+  const dialogue = useDialogue()
   const loader   = useLoader()
   const notification = useNotification()
 
@@ -147,12 +149,14 @@ export function useModuleDetail(moduleId: string | null) {
     if (!moduleId) return
     setLoading(true)
     try {
-      const [mod, docs] = await Promise.all([
+      const [mod, docs, sessionList] = await Promise.all([
         moduleService.get(moduleId),
         moduleService.documents(moduleId),
+        chatService.sessions(moduleId),
       ])
       setModule(mod)
       setDocuments(docs)
+      setSessions(sessionList)
     } catch (e: any) {
       toast.error('Could not load module', e.message)
     } finally {
@@ -188,7 +192,29 @@ export function useModuleDetail(moduleId: string | null) {
     }
   }
 
-  return { module, documents, loading, error: null, refetch: fetch, uploadDocument }
+  const deleteDocument = async (documentId: string, filename: string) => {
+    if (!moduleId) return false
+    const ok = await dialogue.confirm({
+      title:        'Delete note?',
+      message:      `"${filename}" will be permanently removed.`,
+      icon:         '🗑️',
+      confirmLabel: 'Delete',
+      cancelLabel:  'Cancel',
+      destructive:  true,
+    })
+    if (!ok) return false
+    try {
+      await moduleService.deleteDocument(moduleId, documentId)
+      toast.success('Deleted', 'Your note has been removed.')
+      await fetch()
+      return true
+    } catch (e: any) {
+      toast.error('Could not delete', e.message)
+      return false
+    }
+  }
+
+  return { module, documents, sessions, loading, error: null, refetch: fetch, uploadDocument, deleteDocument }
 }
 
 // ─── useChat ──────────────────────────────────────────────────────────────────
@@ -251,7 +277,21 @@ export function useChat(moduleId?: string | null) {
 
   const clearMessages = () => { setMessages([]); setSessionId(null) }
 
-  return { messages, sending, scopeMode, setScopeMode, sessions, send, clearMessages }
+  const loadSession = useCallback(async (id: string) => {
+    try {
+      const session = await chatService.getSession(id)
+      setSessionId(id)
+      const loaded: ChatMessage[] = session.messages.map((m: any) => ({
+        id:      m.id,
+        role:    m.role as 'user' | 'assistant',
+        content: m.content,
+        sources: m.sources || [],
+      }))
+      setMessages(loaded)
+    } catch {}
+  }, [])
+
+  return { messages, sending, scopeMode, setScopeMode, sessions, send, clearMessages, loadSession }
 }
 
 // ─── useQuiz ──────────────────────────────────────────────────────────────────
@@ -283,7 +323,7 @@ export function useQuiz(moduleId?: string | null) {
 
   useEffect(() => { loadHistory() }, [loadHistory])
 
-  const generate = async (questionCount: number, questionType: QType) => {
+  const generate = async (questionCount: number, questionType: QType, topic?: string) => {
     if (!moduleId) {
       toast.warning('No module selected', 'Open a module before generating a quiz.')
       return
@@ -291,7 +331,8 @@ export function useQuiz(moduleId?: string | null) {
     setGenerating(true)
     const loadId = loader.show({ label: 'Generating quiz…', variant: 'dots' })
     try {
-      const res = await quizService.generate(moduleId, questionCount, questionType)
+      const title = topic ? `${topic} Quiz` : 'Module Quiz'
+      const res = await quizService.generate(moduleId, questionCount, questionType, title, topic)
       setAttempt(res)
       setAnswers({})
       setCurrentIdx(0)
@@ -421,7 +462,7 @@ export function useFlashcards(moduleId?: string | null) {
 
   useEffect(() => { loadDecks() }, [loadDecks])
 
-  const generate = async (maxCards: number) => {
+  const generate = async (maxCards: number, topic?: string) => {
     if (!moduleId) {
       toast.warning('No module selected', 'Open a module first.')
       return
@@ -429,7 +470,7 @@ export function useFlashcards(moduleId?: string | null) {
     setGenerating(true)
     const loadId = loader.show({ label: 'Generating flashcards…', variant: 'dots' })
     try {
-      const res = await flashcardService.generate(moduleId, maxCards)
+      const res = await flashcardService.generate(moduleId, maxCards, topic)
       setDeck(res)
       setCardIdx(0)
       setFlipped(false)
@@ -537,7 +578,7 @@ export function useSummary(moduleId?: string | null) {
 
   useEffect(() => { loadSummaries() }, [loadSummaries])
 
-  const generate = async (scope: SummaryScope) => {
+  const generate = async (scope: SummaryScope, topic?: string) => {
     if (!moduleId) {
       toast.warning('No module selected', 'Open a module first.')
       return
@@ -545,7 +586,7 @@ export function useSummary(moduleId?: string | null) {
     setGenerating(true)
     const loadId = loader.show({ label: 'Generating summary…', variant: 'dots' })
     try {
-      const res = await summaryService.generate(moduleId, scope)
+      const res = await summaryService.generate(moduleId, scope, topic)
       setSummary(res)
       await loadSummaries()
       notification.show({

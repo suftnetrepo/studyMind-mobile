@@ -1,16 +1,18 @@
 import React, { useRef, useEffect } from 'react'
 import { Platform, FlatList, KeyboardAvoidingView, TextInput } from 'react-native'
-import { router } from 'expo-router'
-import Marked from 'react-native-marked'
+import { router, useLocalSearchParams } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
 import {
-  StyledPage, Stack, StyledPressable, StyledCard,
+  StyledPage, Stack, StyledPressable, StyledCard, useActionSheet, useToast,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { ScopePill } from '../../src/components/ScopePill'
+import { RichText } from '../../src/components/RichText'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { useChat, type ChatMessage, type ScopeMode } from '../../src/hooks'
+import { copyToClipboard, shareText, formatConversationForExport } from '../../src/utils/share'
 
 const SCOPE_OPTIONS: { key: ScopeMode; label: string; desc: string; emoji: string }[] = [
   { key: 'everything',    label: 'Everything',  desc: 'Class materials + my notes', emoji: '🔍' },
@@ -24,19 +26,33 @@ const PROMPTS = [
   'What should I focus on for the exam?',
 ]
 
+
 export default function ChatScreen() {
   const C       = useColors()
   const isDark  = useIsDark()
   const listRef = useRef<FlatList>(null)
   const inputRef = useRef<TextInput>(null)
   const { activeModuleId, activeModuleTitle, activeCourseCode } = useModuleStore()
+  const { sessionId: initialSessionId, scope: initialScope } =
+    useLocalSearchParams<{ sessionId?: string; scope?: ScopeMode }>()
 
   const {
-    messages, sending, scopeMode, setScopeMode, send,
+    messages, sending, scopeMode, setScopeMode, send, loadSession,
   } = useChat(activeModuleId)
+
+  const actionSheet = useActionSheet()
+  const toast        = useToast()
 
   const [input,      setInput]      = React.useState('')
   const [showScope,  setShowScope]  = React.useState(false)
+
+  useEffect(() => {
+    if (initialSessionId) loadSession(initialSessionId)
+  }, [initialSessionId, loadSession])
+
+  useEffect(() => {
+    if (initialScope) setScopeMode(initialScope)
+  }, [initialScope, setScopeMode])
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -118,26 +134,31 @@ export default function ChatScreen() {
           <Text style={{ fontSize: 14 }}>📚</Text>
         </Stack>
 
-        <Stack
+        <StyledPressable
           backgroundColor={C.bgCard}
           borderRadius={20} borderTopLeftRadius={5}
           borderWidth={1} borderColor={C.border}
           paddingHorizontal={16} paddingVertical={14}
           style={{ maxWidth: '88%' }}
+          onLongPress={() => {
+            actionSheet.show({
+              title: 'Message options',
+              items: [
+                {
+                  icon:    '📋',
+                  label:   'Copy message',
+                  onPress: () => copyToClipboard(cleanAnswer, toast),
+                },
+                {
+                  icon:    '⬆️',
+                  label:   'Share message',
+                  onPress: () => shareText(cleanAnswer, 'studymind-message.txt', toast),
+                },
+              ],
+            })
+          }}
         >
-          <Marked
-            value={cleanAnswer}
-            flatListProps={{
-              scrollEnabled: false,
-              style: { backgroundColor: 'transparent' },
-            }}
-            styles={{
-              text:      { fontSize: 14, color: C.textPrimary, lineHeight: 22, fontFamily: 'PlusJakartaSans_400Regular' },
-              strong:    { fontFamily: 'PlusJakartaSans_700Bold', color: C.textPrimary },
-              paragraph: { marginBottom: 6 },
-              li:        { marginBottom: 4 },
-            }}
-          />
+          <RichText content={cleanAnswer} fontSize={14} />
 
           {/* Source citations */}
           {item.sources && item.sources.length > 0 && (
@@ -167,7 +188,7 @@ export default function ChatScreen() {
               ))}
             </Stack>
           )}
-        </Stack>
+        </StyledPressable>
       </Stack>
     )
   }
@@ -181,6 +202,22 @@ export default function ChatScreen() {
         title={activeCourseCode ? `${activeCourseCode} — AI Tutor` : 'AI Tutor'}
         subtitle={activeModuleTitle || undefined}
         onBackPress={() => router.back()}
+        rightIcon={
+          <StyledPressable
+            onPress={() => {
+              const text = formatConversationForExport(
+                messages,
+                activeCourseCode ? `${activeCourseCode} — AI Tutor` : 'AI Tutor',
+              )
+              shareText(text, 'studymind-conversation.txt', toast)
+            }}
+            width={38} height={38} borderRadius={11}
+            backgroundColor={C.bgMuted}
+            alignItems="center" justifyContent="center"
+          >
+            <Feather name="share" size={16} color={C.textPrimary} />
+          </StyledPressable>
+        }
       />
 
       {/* Scope pill */}

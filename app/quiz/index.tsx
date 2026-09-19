@@ -1,16 +1,19 @@
 import React from 'react'
-import { Platform } from 'react-native'
+import { Platform, TextInput } from 'react-native'
 import { router } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
 import {
   StyledPage, StyledScrollView, Stack,
-  StyledCard, StyledPressable, StyledButton,
+  StyledCard, StyledPressable, StyledButton, useToast,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { EmptyState } from '../../src/components/EmptyState'
+import { RichText } from '../../src/components/RichText'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { useQuiz, type QType } from '../../src/hooks'
+import { shareText } from '../../src/utils/share'
 
 const Q_COUNTS   = [5, 10, 15, 20] as const
 const Q_TYPES: { key: QType; label: string; emoji: string; desc: string }[] = [
@@ -25,12 +28,34 @@ export default function QuizScreen() {
 
   const [qCount, setQCount] = React.useState(5)
   const [qType,  setQType]  = React.useState<QType>('mcq')
+  const [topic,  setTopic]  = React.useState('')
 
   const {
     phase, currentQuestion, currentIdx, totalQuestions,
     progress, answers, results, generating, submitting,
     generate, answer, next, prev, submit, reset,
   } = useQuiz(activeModuleId)
+
+  const toast = useToast()
+
+  const formatQuizResults = (results: any, courseCode: string, topic?: string) => {
+    const lines = [
+      `StudyMind AI — ${courseCode} Quiz Results`,
+      topic ? `Topic: ${topic}` : '',
+      `Score: ${Math.round(results.score)}% (${results.correct}/${results.total} correct)`,
+      `Date: ${new Date().toLocaleString()}`,
+      '─'.repeat(50),
+      '',
+    ]
+    results.questions.forEach((q: any, i: number) => {
+      lines.push(`Q${i + 1}: ${q.question}`)
+      lines.push(`Your answer: ${q.student_answer || 'Not answered'}`)
+      lines.push(`Correct: ${q.correct_answer} ${q.is_correct ? '✓' : '✗'}`)
+      lines.push(`Explanation: ${q.explanation}`)
+      lines.push('')
+    })
+    return lines.filter(Boolean).join('\n')
+  }
 
   // ── Setup ─────────────────────────────────────────────────────────────────
   if (phase === 'setup') {
@@ -138,9 +163,36 @@ export default function QuizScreen() {
                 ))}
               </Stack>
 
+              {/* Topic */}
+              <Stack gap={8} marginBottom={24}>
+                <Text variant="label" color={C.textPrimary} fontWeight="700">
+                  Topic (optional)
+                </Text>
+                <Stack
+                  backgroundColor={C.bgInput} borderRadius={14}
+                  borderWidth={1} borderColor={C.border}
+                  paddingHorizontal={16} paddingVertical={12}
+                >
+                  <TextInput
+                    value={topic}
+                    onChangeText={setTopic}
+                    placeholder="e.g. Python data types, React Native hooks, TypeScript generics"
+                    placeholderTextColor={C.textMuted}
+                    style={{
+                      color:      C.textPrimary,
+                      fontSize:   14,
+                      fontFamily: 'PlusJakartaSans_400Regular',
+                    }}
+                  />
+                </Stack>
+                <Text variant="caption" color={C.textSecondary}>
+                  Leave blank to cover all topics in this module
+                </Text>
+              </Stack>
+
               <StyledButton
                 backgroundColor={C.quizColor} borderRadius={16} paddingVertical={17}
-                loading={generating} onPress={() => generate(qCount, qType)}
+                loading={generating} onPress={() => generate(qCount, qType, topic || undefined)}
                 style={{
                   shadowColor: C.quizColor, shadowOpacity: 0.4,
                   shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 8,
@@ -212,11 +264,7 @@ export default function QuizScreen() {
                 Q{currentIdx + 1}
               </Text>
             </Stack>
-            <Text variant="subtitle" color={C.textPrimary} fontWeight="700"
-              style={{ lineHeight: 28 }}
-            >
-              {currentQuestion.question}
-            </Text>
+            <RichText content={currentQuestion.question} fontSize={14} />
           </StyledCard>
 
           {/* Options */}
@@ -387,9 +435,7 @@ export default function QuizScreen() {
                         ✓ Correct!
                       </Text>
                     )}
-                    <Text variant="caption" color={C.textSecondary} style={{ lineHeight: 18 }}>
-                      {q.explanation}
-                    </Text>
+                    <RichText content={q.explanation} fontSize={13} />
                   </Stack>
                 </StyledCard>
               )
@@ -407,6 +453,20 @@ export default function QuizScreen() {
             >
               <Text variant="button" color={C.white}>Try another quiz</Text>
             </StyledButton>
+            <StyledPressable
+              onPress={() => shareText(
+                formatQuizResults(results, activeCourseCode || 'Module', topic || undefined),
+                'studymind-quiz-results.txt',
+                toast,
+              )}
+              backgroundColor={C.bgCard} borderRadius={14} paddingVertical={14}
+              alignItems="center" borderWidth={1} borderColor={C.border}
+            >
+              <Stack horizontal alignItems="center" gap={6}>
+                <Feather name="share" size={15} color={C.textPrimary} />
+                <Text variant="label" color={C.textPrimary}>Share results</Text>
+              </Stack>
+            </StyledPressable>
             <StyledButton
               backgroundColor={C.bgCard} borderRadius={16} paddingVertical={16}
               borderWidth={1} borderColor={C.border}

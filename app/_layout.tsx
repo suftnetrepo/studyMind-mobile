@@ -74,6 +74,8 @@ export default function RootLayout() {
             <Stack.Screen name="quiz/index"     options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="flashcards/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="summary/index"  options={{ headerShown: false, animation: 'slide_from_right' }} />
+            <Stack.Screen name="notes/index"    options={{ headerShown: false, animation: 'slide_from_right' }} />
+            <Stack.Screen name="notes/[id]"     options={{ headerShown: false, animation: 'slide_from_right' }} />
           </Stack>
         </PortalManager>
       </GlobalPortalProvider>

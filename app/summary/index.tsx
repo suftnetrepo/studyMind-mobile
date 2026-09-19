@@ -1,16 +1,19 @@
 import React from 'react'
-import { Platform } from 'react-native'
+import { Platform, TextInput } from 'react-native'
 import { router } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
 import {
   StyledPage, StyledScrollView, Stack,
-  StyledCard, StyledPressable, StyledButton,
+  StyledCard, StyledPressable, StyledButton, useToast,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { EmptyState } from '../../src/components/EmptyState'
+import { RichText } from '../../src/components/RichText'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { useSummary, type SummaryScope } from '../../src/hooks'
+import { copyToClipboard, shareText, formatSummaryForExport } from '../../src/utils/share'
 
 const SCOPE_OPTIONS: {
   key: SummaryScope; label: string; emoji: string; desc: string
@@ -52,7 +55,9 @@ export default function SummaryScreen() {
   const { activeModuleId, activeCourseCode, activeModuleTitle } = useModuleStore()
 
   const [scope, setScope] = React.useState<SummaryScope>('module')
+  const [topic, setTopic] = React.useState('')
   const { summary, summaries, generating, generate, openSummary, closeSummary } = useSummary(activeModuleId)
+  const toast = useToast()
 
   // ── Setup ─────────────────────────────────────────────────────────────────
   if (!summary) {
@@ -174,9 +179,36 @@ export default function SummaryScreen() {
                 </>
               )}
 
+              {/* Topic */}
+              <Stack gap={8} marginBottom={24}>
+                <Text variant="label" color={C.textPrimary} fontWeight="700">
+                  Topic (optional)
+                </Text>
+                <Stack
+                  backgroundColor={C.bgInput} borderRadius={14}
+                  borderWidth={1} borderColor={C.border}
+                  paddingHorizontal={16} paddingVertical={12}
+                >
+                  <TextInput
+                    value={topic}
+                    onChangeText={setTopic}
+                    placeholder="e.g. Python data types, React Native hooks, TypeScript generics"
+                    placeholderTextColor={C.textMuted}
+                    style={{
+                      color:      C.textPrimary,
+                      fontSize:   14,
+                      fontFamily: 'PlusJakartaSans_400Regular',
+                    }}
+                  />
+                </Stack>
+                <Text variant="caption" color={C.textSecondary}>
+                  Leave blank to cover all topics in this module
+                </Text>
+              </Stack>
+
               <StyledButton
                 backgroundColor={C.sumColor} borderRadius={16} paddingVertical={17}
-                loading={generating} onPress={() => generate(scope)}
+                loading={generating} onPress={() => generate(scope, topic || undefined)}
                 style={{
                   shadowColor: C.sumColor, shadowOpacity: 0.4,
                   shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 8,
@@ -307,9 +339,9 @@ export default function SummaryScreen() {
                           {line.slice(colonIdx + 1).trim()}
                         </Text>
                       ) : (
-                        <Text variant="body" color={C.textSecondary}
-                          style={{ flex: 1, lineHeight: 22 }}
-                        >{line}</Text>
+                        <Stack style={{ flex: 1 }}>
+                          <RichText content={line} fontSize={13} />
+                        </Stack>
                       )}
                     </Stack>
                   )
@@ -327,6 +359,38 @@ export default function SummaryScreen() {
         >
           <Text variant="button" color={C.textPrimary}>↺ New summary</Text>
         </StyledButton>
+
+        <Stack horizontal gap={10} marginTop={10}>
+          <StyledPressable
+            flex={1}
+            backgroundColor={C.bgCard} borderRadius={14} paddingVertical={13}
+            alignItems="center" borderWidth={1} borderColor={C.border}
+            onPress={() => copyToClipboard(
+              formatSummaryForExport(summary, activeCourseCode || 'Module'),
+              toast,
+            )}
+          >
+            <Stack horizontal alignItems="center" gap={6}>
+              <Feather name="copy" size={15} color={C.textPrimary} />
+              <Text variant="label" color={C.textPrimary}>Copy</Text>
+            </Stack>
+          </StyledPressable>
+          <StyledPressable
+            flex={1}
+            backgroundColor={C.primaryBg} borderRadius={14} paddingVertical={13}
+            alignItems="center" borderWidth={1} borderColor={`${C.primary}30`}
+            onPress={() => shareText(
+              formatSummaryForExport(summary, activeCourseCode || 'Module'),
+              'studymind-summary.txt',
+              toast,
+            )}
+          >
+            <Stack horizontal alignItems="center" gap={6}>
+              <Feather name="share" size={15} color={C.primary} />
+              <Text variant="label" color={C.primary}>Share</Text>
+            </Stack>
+          </StyledPressable>
+        </Stack>
 
       </StyledScrollView>
     </StyledPage>
