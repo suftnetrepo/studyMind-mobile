@@ -1,12 +1,10 @@
 import React from 'react'
-import { Text } from 'react-native'
 import { Tabs } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
 import { useColors } from '../../src/constants'
 
-// Simple icon component — mirrors nailbid's icon approach but with emoji
-// since we don't have SVG icon components yet
-const Icon = ({ emoji, color, focused }: { emoji: string; color: string; focused: boolean }) => (
-  <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
+const Icon = ({ name, color }: { name: keyof typeof Feather.glyphMap; color: string }) => (
+  <Feather name={name} size={22} color={color} />
 )
 
 export default function TabsLayout() {
@@ -35,35 +33,35 @@ export default function TabsLayout() {
         name="index"
         options={{
           title:      'Home',
-          tabBarIcon: ({ color, focused }) => <Icon emoji="🏠" color={color} focused={focused} />,
+          tabBarIcon: ({ color }) => <Icon name="home" color={color} />,
         }}
       />
       <Tabs.Screen
         name="modules"
         options={{
           title:      'Modules',
-          tabBarIcon: ({ color, focused }) => <Icon emoji="📚" color={color} focused={focused} />,
+          tabBarIcon: ({ color }) => <Icon name="book-open" color={color} />,
         }}
       />
       <Tabs.Screen
         name="activity"
         options={{
           title:      'Activity',
-          tabBarIcon: ({ color, focused }) => <Icon emoji="📊" color={color} focused={focused} />,
+          tabBarIcon: ({ color }) => <Icon name="bar-chart-2" color={color} />,
         }}
       />
       <Tabs.Screen
         name="notes-tab"
         options={{
           title:      'Notes',
-          tabBarIcon: ({ color, focused }) => <Icon emoji="📝" color={color} focused={focused} />,
+          tabBarIcon: ({ color }) => <Icon name="edit-3" color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title:      'Profile',
-          tabBarIcon: ({ color, focused }) => <Icon emoji="👤" color={color} focused={focused} />,
+          tabBarIcon: ({ color }) => <Icon name="user" color={color} />,
         }}
       />
     </Tabs>

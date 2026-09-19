@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Platform, TextInput } from 'react-native'
 import { router } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
 import {
   StyledPage, StyledScrollView, Stack,
   StyledCard, StyledPressable, StyledButton, TabBar, type TabItem,
@@ -256,7 +257,12 @@ export default function ModulesScreen() {
 
         {!loading && filtered.length === 0 && (
           <Stack alignItems="center" padding={40} gap={14} marginTop={20}>
-            <Text style={{ fontSize: 48 }}>📚</Text>
+            <Stack
+              width={84} height={84} borderRadius={26}
+              backgroundColor={C.primaryBg} alignItems="center" justifyContent="center"
+            >
+              <Feather name="book-open" size={36} color={C.primary} />
+            </Stack>
             <Text variant="subtitle" color={C.textPrimary} fontWeight="700" textAlign="center">
               No {filter === 'all' ? '' : filter} modules yet
             </Text>

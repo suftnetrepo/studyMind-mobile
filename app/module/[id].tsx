@@ -76,16 +76,6 @@ export default function ModuleDetailScreen() {
     toast.info('Coming soon', 'Camera scanning coming soon')
   }
 
-  // Quiz/flashcards/summary generation always draws from both class and
-  // personal materials — the backend has no personal-only retrieval mode
-  // for those three (only chat's scope_mode supports it). So only the chat
-  // quick action can honestly promise "my notes only"; see chat's
-  // ?scope=personal_only below.
-  const handleQuickAction = (toolKey: string) => {
-    if (module) setActiveModule(module.id, module.title, module.course_code)
-    router.push((toolKey === 'chat' ? '/chat?scope=personal_only' : `/${toolKey}`) as any)
-  }
-
   return (
     <StyledPage flex={1} backgroundColor={C.bg} showStatusBar
       statusBarStyle={isDark ? 'light-content' : 'dark-content'}
@@ -145,15 +135,17 @@ export default function ModuleDetailScreen() {
               {/* Stats row */}
               <Stack horizontal gap={10} marginTop={18}>
                 {[
-                  { value: classDocs.length,    label: 'Class docs' },
-                  { value: myNotes.length,      label: 'My notes'   },
-                  { value: documents.reduce((a, d) => a + (d.chunk_count || 0), 0), label: 'Chunks' },
+                  { value: classDocs.length, label: 'Class docs', icon: 'book-open' as const },
+                  { value: myNotes.length,   label: 'My notes',   icon: 'edit-3' as const },
+                  { value: sessions.length,  label: 'AI chats',   icon: 'message-circle' as const },
                 ].map((stat) => (
                   <Stack
                     key={stat.label} flex={1}
-                    backgroundColor="rgba(255,255,255,0.1)"
-                    borderRadius={12} padding={12} alignItems="center" gap={3}
+                    backgroundColor="rgba(255,255,255,0.08)"
+                    borderRadius={14} padding={14} alignItems="center" gap={7}
+                    style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}
                   >
+                    <Feather name={stat.icon} size={15} color="rgba(255,255,255,0.55)" />
                     <Text variant="title" color="#FFFFFF" fontWeight="800"
                       style={{ fontSize: 20 }}
                     >{stat.value}</Text>
@@ -305,27 +297,6 @@ export default function ModuleDetailScreen() {
           <Stack gap={14}>
             <Text variant="overline" color={C.textSecondary}>My study notes</Text>
 
-            <StyledPressable onPress={() => router.push('/notes')}>
-              <StyledCard backgroundColor={C.bgCard} borderRadius={16} padding={14}
-                style={{ borderWidth: 1, borderColor: C.border }}
-              >
-                <Stack horizontal alignItems="center" gap={12}>
-                  <Stack width={42} height={42} borderRadius={12}
-                    backgroundColor={C.flashBg} alignItems="center" justifyContent="center"
-                  >
-                    <Feather name="edit-3" size={19} color={C.flashColor} />
-                  </Stack>
-                  <Stack flex={1}>
-                    <Text variant="label" color={C.textPrimary} fontWeight="700">My Notes</Text>
-                    <Text variant="caption" color={C.textSecondary}>
-                      {notes.length} note{notes.length !== 1 ? 's' : ''} · tap to write or view
-                    </Text>
-                  </Stack>
-                  <Text style={{ fontSize: 16, color: C.textMuted }}>›</Text>
-                </Stack>
-              </StyledCard>
-            </StyledPressable>
-
             <Stack horizontal gap={10}>
               <StyledButton
                 flex={1}
@@ -351,6 +322,27 @@ export default function ModuleDetailScreen() {
               </StyledPressable>
             </Stack>
 
+            <StyledPressable onPress={() => router.push('/notes')}>
+              <StyledCard backgroundColor={C.bgCard} borderRadius={16} padding={14}
+                style={{ borderWidth: 1, borderColor: C.border }}
+              >
+                <Stack horizontal alignItems="center" gap={12}>
+                  <Stack width={42} height={42} borderRadius={12}
+                    backgroundColor={C.flashBg} alignItems="center" justifyContent="center"
+                  >
+                    <Feather name="edit-3" size={19} color={C.flashColor} />
+                  </Stack>
+                  <Stack flex={1}>
+                    <Text variant="label" color={C.textPrimary} fontWeight="700">Written notes</Text>
+                    <Text variant="caption" color={C.textSecondary}>
+                      {notes.length} note{notes.length !== 1 ? 's' : ''} · tap to write or view
+                    </Text>
+                  </Stack>
+                  <Text style={{ fontSize: 16, color: C.textMuted }}>›</Text>
+                </Stack>
+              </StyledCard>
+            </StyledPressable>
+
             {loading && (
               <Stack gap={10}>
                 {[1, 2, 3].map((i) => (
@@ -363,6 +355,7 @@ export default function ModuleDetailScreen() {
 
             {myNotes.length > 0 && (
               <Stack gap={10}>
+                <Text variant="overline" color={C.textSecondary}>Uploaded files</Text>
                 {myNotes.map((doc) => (
                   <StyledCard key={doc.id} backgroundColor={C.bgCard} borderRadius={14} padding={14}
                     style={{ borderWidth: 1, borderColor: C.border }}
@@ -411,46 +404,12 @@ export default function ModuleDetailScreen() {
                 style={{ borderWidth: 1, borderColor: C.border }}
               >
                 <Feather name="folder" size={36} color={C.textMuted} />
-                <Text variant="subtitle" color={C.textPrimary} fontWeight="700">No notes yet</Text>
+                <Text variant="subtitle" color={C.textPrimary} fontWeight="700">No uploaded files yet</Text>
                 <Text variant="body" color={C.textSecondary} textAlign="center">
-                  Upload your own notes to study alongside the class materials.
+                  Upload a document or use Written notes above to start studying.
                 </Text>
               </StyledCard>
             )}
-
-            <Text variant="overline" color={C.textSecondary} marginTop={8}>
-              Use my notes with AI
-            </Text>
-            <Stack style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              {TOOLS.map((tool) => {
-                const meta  = TOOL_META[tool.key as keyof typeof TOOL_META]
-                const color = C[meta.color as keyof typeof C] as string
-                const bg    = C[meta.bg as keyof typeof C] as string
-                return (
-                  <StyledPressable
-                    key={tool.key} style={{ width: '47%' }}
-                    onPress={() => handleQuickAction(tool.key)}
-                  >
-                    <StyledCard
-                      backgroundColor={C.bgCard} borderRadius={16} padding={14}
-                      style={{ borderWidth: 1, borderColor: C.border }}
-                    >
-                      <Stack horizontal alignItems="center" gap={10}>
-                        <Stack
-                          width={36} height={36} borderRadius={11}
-                          backgroundColor={bg} alignItems="center" justifyContent="center"
-                        >
-                          <Feather name={meta.icon} size={17} color={color} />
-                        </Stack>
-                        <Text variant="label" color={C.textPrimary} fontWeight="700" style={{ flex: 1 }}>
-                          {meta.label.replace('AI ', '')}
-                        </Text>
-                      </Stack>
-                    </StyledCard>
-                  </StyledPressable>
-                )
-              })}
-            </Stack>
           </Stack>
         )}
 

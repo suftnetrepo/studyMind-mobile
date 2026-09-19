@@ -16,9 +16,9 @@ import { useQuiz, type QType } from '../../src/hooks'
 import { shareText } from '../../src/utils/share'
 
 const Q_COUNTS   = [5, 10, 15, 20] as const
-const Q_TYPES: { key: QType; label: string; emoji: string; desc: string }[] = [
-  { key: 'mcq',        label: 'Multiple choice', emoji: '🔤', desc: '4 options per question' },
-  { key: 'true_false', label: 'True / false',    emoji: '✓✗', desc: 'Quick binary questions' },
+const Q_TYPES: { key: QType; label: string; icon: keyof typeof Feather.glyphMap; desc: string }[] = [
+  { key: 'mcq',        label: 'Multiple choice', icon: 'list',         desc: '4 options per question' },
+  { key: 'true_false', label: 'True / false',    icon: 'toggle-left',  desc: 'Quick binary questions' },
 ]
 
 export default function QuizScreen() {
@@ -69,7 +69,7 @@ export default function QuizScreen() {
 
           {!activeModuleId ? (
             <EmptyState
-              emoji="📝"
+              icon="help-circle"
               title="No module selected"
               subtitle="Open a module first, then generate a quiz from its materials."
               action={{ label: 'Browse modules', onPress: () => router.push('/(tabs)/modules' as any) }}
@@ -85,7 +85,7 @@ export default function QuizScreen() {
                     width={46} height={46} borderRadius={13}
                     backgroundColor={`${C.quizColor}20`} alignItems="center" justifyContent="center"
                   >
-                    <Text style={{ fontSize: 22 }}>📝</Text>
+                    <Feather name="help-circle" size={20} color={C.quizColor} />
                   </Stack>
                   <Stack flex={1}>
                     <Text variant="overline" color={C.quizColor}>Generating from</Text>
@@ -128,7 +128,7 @@ export default function QuizScreen() {
                 Question type
               </Text>
               <Stack gap={10} marginBottom={32}>
-                {Q_TYPES.map(({ key, label, emoji, desc }) => (
+                {Q_TYPES.map(({ key, label, icon, desc }) => (
                   <StyledPressable
                     key={key}
                     backgroundColor={qType === key ? C.quizBg : C.bgCard}
@@ -142,7 +142,7 @@ export default function QuizScreen() {
                       backgroundColor={qType === key ? `${C.quizColor}20` : C.bgMuted}
                       alignItems="center" justifyContent="center"
                     >
-                      <Text style={{ fontSize: 18 }}>{emoji}</Text>
+                      <Feather name={icon} size={18} color={qType === key ? C.quizColor : C.textSecondary} />
                     </Stack>
                     <Stack flex={1} gap={2}>
                       <Text variant="label"
@@ -156,7 +156,7 @@ export default function QuizScreen() {
                         width={24} height={24} borderRadius={12}
                         backgroundColor={C.quizColor} alignItems="center" justifyContent="center"
                       >
-                        <Text style={{ fontSize: 12, color: C.white, fontWeight: '700' }}>✓</Text>
+                        <Feather name="check" size={13} color={C.white} />
                       </Stack>
                     )}
                   </StyledPressable>
@@ -355,7 +355,7 @@ export default function QuizScreen() {
     const pct      = Math.round(results.score)
     const scoreClr = pct >= 70 ? C.success   : pct >= 50 ? C.warning   : C.error
     const scoreBg  = pct >= 70 ? C.successBg : pct >= 50 ? C.warningBg : C.errorBg
-    const emoji    = pct >= 70 ? '🎉' : pct >= 50 ? '👍' : '📖'
+    const resultIcon: keyof typeof Feather.glyphMap = pct >= 70 ? 'award' : pct >= 50 ? 'thumbs-up' : 'book'
 
     return (
       <StyledPage flex={1} backgroundColor={C.bg} showStatusBar
@@ -376,7 +376,7 @@ export default function QuizScreen() {
               shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6,
             }}
           >
-            <Text style={{ fontSize: 52 }}>{emoji}</Text>
+            <Feather name={resultIcon} size={46} color={scoreClr} />
             <Text style={{ fontSize: 56, fontWeight: '800', color: scoreClr, fontFamily: 'PlusJakartaSans_800ExtraBold' }}>
               {pct}%
             </Text>
@@ -413,9 +413,7 @@ export default function QuizScreen() {
                       alignItems="center" justifyContent="center"
                       style={{ flexShrink: 0, marginTop: 1 }}
                     >
-                      <Text style={{ fontSize: 11, color: borderColor, fontWeight: '800' }}>
-                        {correct ? '✓' : '✗'}
-                      </Text>
+                      <Feather name={correct ? 'check' : 'x'} size={13} color={borderColor} />
                     </Stack>
                     <Text variant="body" color={C.textPrimary} fontWeight="600"
                       style={{ flex: 1, lineHeight: 22 }}
@@ -426,14 +424,20 @@ export default function QuizScreen() {
                     style={{ borderWidth: 1, borderColor: `${borderColor}30` }}
                   >
                     {!correct && (
-                      <Text variant="caption" color={borderColor} fontWeight="700" marginBottom={4}>
-                        ✗ Correct answer: {q.correct_answer.toUpperCase()}
-                      </Text>
+                      <Stack horizontal alignItems="center" gap={5} marginBottom={4}>
+                        <Feather name="x" size={12} color={borderColor} />
+                        <Text variant="caption" color={borderColor} fontWeight="700">
+                          Correct answer: {q.correct_answer.toUpperCase()}
+                        </Text>
+                      </Stack>
                     )}
                     {correct && (
-                      <Text variant="caption" color={borderColor} fontWeight="700" marginBottom={4}>
-                        ✓ Correct!
-                      </Text>
+                      <Stack horizontal alignItems="center" gap={5} marginBottom={4}>
+                        <Feather name="check" size={12} color={borderColor} />
+                        <Text variant="caption" color={borderColor} fontWeight="700">
+                          Correct!
+                        </Text>
+                      </Stack>
                     )}
                     <RichText content={q.explanation} fontSize={13} />
                   </Stack>

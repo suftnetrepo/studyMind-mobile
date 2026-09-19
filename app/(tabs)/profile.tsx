@@ -1,6 +1,7 @@
 import React from 'react'
 import { Platform } from 'react-native'
 import { router } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
 import {
   StyledPage, StyledScrollView, Stack,
   StyledCard, StyledPressable,
@@ -17,12 +18,12 @@ const ROLE_LABEL: Record<string, string> = {
   admin:        'Administrator',
 }
 
-const MENU_ITEMS = [
-  { emoji: '🔔', label: 'Notifications',   action: 'notifications' },
-  { emoji: '🎨', label: 'Appearance',      action: 'appearance'    },
-  { emoji: '🔒', label: 'Privacy',         action: 'privacy'       },
-  { emoji: '❓', label: 'Help & Support',  action: 'help'          },
-  { emoji: '⭐', label: 'Rate the app',    action: 'rate'          },
+const MENU_ITEMS: { icon: keyof typeof Feather.glyphMap; label: string; action: string }[] = [
+  { icon: 'bell',        label: 'Notifications',  action: 'notifications' },
+  { icon: 'moon',        label: 'Appearance',     action: 'appearance'    },
+  { icon: 'lock',        label: 'Privacy',        action: 'privacy'       },
+  { icon: 'help-circle', label: 'Help & Support', action: 'help'          },
+  { icon: 'star',        label: 'Rate the app',   action: 'rate'          },
 ]
 
 export default function ProfileScreen() {
@@ -104,7 +105,7 @@ export default function ProfileScreen() {
                   width={38} height={38} borderRadius={11}
                   backgroundColor={C.bgMuted} alignItems="center" justifyContent="center"
                 >
-                  <Text style={{ fontSize: 16 }}>{item.emoji}</Text>
+                  <Feather name={item.icon} size={16} color={C.textPrimary} />
                 </Stack>
                 <Text variant="body" color={C.textPrimary} fontWeight="500" style={{ flex: 1 }}>
                   {item.label}

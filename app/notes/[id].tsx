@@ -18,7 +18,7 @@ export default function NoteEditorScreen() {
   const isDark  = useIsDark()
   const { id }  = useLocalSearchParams<{ id: string }>()
   const { activeModuleId, activeCourseCode } = useModuleStore()
-  const { updateNote, syncNoteToBackend, deleteNote } = useNotes(activeModuleId)
+  const { updateNote, syncNoteToBackend, syncingId, deleteNote } = useNotes(activeModuleId)
   const actionSheet = useActionSheet()
 
   const [note,    setNote]    = useState<Note | null>(null)
@@ -46,9 +46,24 @@ export default function NoteEditorScreen() {
       if (saveTimer.current) clearTimeout(saveTimer.current)
       saveTimer.current = setTimeout(() => {
         updateNote(note.id, text)
+        // Editing invalidates the previous sync (DB already flips synced=0
+        // on update) — reflect that locally so the pill doesn't keep
+        // claiming "Saved to AI" for content the AI has never seen.
+        setNote((prev) => (prev ? { ...prev, synced: false } : prev))
       }, 1000)
     }
   }, [note, updateNote])
+
+  const handleSync = async (n: Note) => {
+    const ok = await syncNoteToBackend(n)
+    if (ok) setNote((prev) => (prev ? { ...prev, synced: true } : prev))
+    return ok
+  }
+
+  const handleEnsureSynced = async (n: Note) => {
+    if (n.synced) return true
+    return handleSync(n)
+  }
 
   // Append new input as a new paragraph
   const handleSend = () => {
@@ -58,8 +73,20 @@ export default function NoteEditorScreen() {
       : input.trim()
     setContent(newContent)
     setInput('')
-    if (note) updateNote(note.id, newContent)
+    if (note) {
+      updateNote(note.id, newContent)
+      setNote((prev) => (prev ? { ...prev, synced: false } : prev))
+    }
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
+  }
+
+  // Syncs first if the note hasn't been saved to AI yet, then navigates —
+  // so "Chat about this note" etc. always has content to actually work
+  // with, instead of silently doing nothing useful for an unsynced note.
+  const goToAIFeature = async (route: string) => {
+    if (!note) return
+    const ok = await handleEnsureSynced(note)
+    if (ok) router.push(route as any)
   }
 
   const handleActions = () => {
@@ -68,28 +95,28 @@ export default function NoteEditorScreen() {
       items: [
         {
           icon: '🤖',
-          label: 'Save to AI (make searchable)',
-          onPress: () => note && syncNoteToBackend(note),
+          label: note?.synced ? 'Re-sync to AI' : 'Save to AI (make searchable)',
+          onPress: () => note && handleSync(note),
         },
         {
           icon: '💬',
           label: 'Chat about this note',
-          onPress: () => router.push('/chat'),
+          onPress: () => goToAIFeature('/chat'),
         },
         {
           icon: '📝',
           label: 'Generate quiz from note',
-          onPress: () => router.push('/quiz'),
+          onPress: () => goToAIFeature('/quiz'),
         },
         {
           icon: '🃏',
           label: 'Generate flashcards',
-          onPress: () => router.push('/flashcards'),
+          onPress: () => goToAIFeature('/flashcards'),
         },
         {
           icon: '📋',
           label: 'Summarise this note',
-          onPress: () => router.push('/summary'),
+          onPress: () => goToAIFeature('/summary'),
         },
         {
           icon: '🗑',
@@ -167,23 +194,34 @@ export default function NoteEditorScreen() {
           </Stack>
         )}
 
-        {/* Sync status */}
-        {note && (
-          <Stack
-            horizontal alignItems="center" gap={7} marginTop={16}
-            backgroundColor={note.synced ? C.successBg : C.bgMuted}
-            borderRadius={10} paddingHorizontal={12} paddingVertical={8}
-            style={{ alignSelf: 'flex-start' }}
-          >
-            <Stack
-              width={7} height={7} borderRadius={4}
-              backgroundColor={note.synced ? C.success : C.warning}
-            />
-            <Text variant="caption" color={note.synced ? C.success : C.textSecondary} fontWeight="600">
-              {note.synced ? 'Saved to AI' : 'Not yet saved to AI — tap ⋯ to sync'}
-            </Text>
-          </Stack>
-        )}
+        {/* Sync status — tap to save/re-sync directly, no need to go via ⋯ */}
+        {note && (() => {
+          const isSyncing = syncingId === note.id
+          return (
+            <StyledPressable
+              onPress={() => handleSync(note)}
+              disabled={isSyncing}
+              style={{ alignSelf: 'flex-start' }}
+            >
+              <Stack
+                horizontal alignItems="center" gap={7} marginTop={16}
+                backgroundColor={note.synced ? C.successBg : C.bgMuted}
+                borderRadius={10} paddingHorizontal={12} paddingVertical={8}
+              >
+                <Stack
+                  width={7} height={7} borderRadius={4}
+                  backgroundColor={note.synced ? C.success : C.warning}
+                  style={isSyncing ? { opacity: 0.5 } : undefined}
+                />
+                <Text variant="caption" color={note.synced ? C.success : C.textSecondary} fontWeight="600">
+                  {isSyncing
+                    ? 'Saving…'
+                    : note.synced ? 'Saved to AI' : 'Not yet saved to AI — tap to sync'}
+                </Text>
+              </Stack>
+            </StyledPressable>
+          )
+        })()}
       </ScrollView>
 
       {/* Input bar — like chat */}
@@ -192,14 +230,14 @@ export default function NoteEditorScreen() {
         keyboardVerticalOffset={90}
       >
         <Stack
-          backgroundColor={C.bgCard}
+          backgroundColor={C.bg}
           borderTopWidth={1} borderTopColor={C.border}
           paddingHorizontal={16} paddingTop={10}
           paddingBottom={Platform.OS === 'ios' ? 30 : 12}
           horizontal gap={10} alignItems="flex-end"
         >
           <Stack
-            flex={1} backgroundColor={C.bgInput}
+            flex={1} backgroundColor={C.bgCard}
             borderRadius={18} borderWidth={1} borderColor={C.border}
             paddingHorizontal={16} paddingVertical={10}
             style={{ minHeight: 46, maxHeight: 140 }}
@@ -215,6 +253,8 @@ export default function NoteEditorScreen() {
                 fontSize:   14,
                 fontFamily: 'PlusJakartaSans_400Regular',
                 lineHeight: 20,
+                textAlignVertical: 'center',
+                paddingVertical: 0,
               }}
             />
           </Stack>

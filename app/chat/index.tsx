@@ -7,25 +7,11 @@ import {
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
-import { ScopePill } from '../../src/components/ScopePill'
 import { RichText } from '../../src/components/RichText'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { useChat, type ChatMessage, type ScopeMode } from '../../src/hooks'
 import { copyToClipboard, shareText, formatConversationForExport } from '../../src/utils/share'
-
-const SCOPE_OPTIONS: { key: ScopeMode; label: string; desc: string; emoji: string }[] = [
-  { key: 'everything',    label: 'Everything',  desc: 'Class materials + my notes', emoji: '🔍' },
-  { key: 'class_only',    label: 'Class only',  desc: 'Lecturer materials only',    emoji: '🏫' },
-  { key: 'personal_only', label: 'My notes',    desc: 'My personal uploads only',   emoji: '📝' },
-]
-
-const PROMPTS = [
-  'What are the key topics covered?',
-  'Summarise the main concepts',
-  'What should I focus on for the exam?',
-]
-
 
 export default function ChatScreen() {
   const C       = useColors()
@@ -37,14 +23,13 @@ export default function ChatScreen() {
     useLocalSearchParams<{ sessionId?: string; scope?: ScopeMode }>()
 
   const {
-    messages, sending, scopeMode, setScopeMode, send, loadSession,
+    messages, sending, setScopeMode, send, loadSession,
   } = useChat(activeModuleId)
 
   const actionSheet = useActionSheet()
   const toast        = useToast()
 
-  const [input,      setInput]      = React.useState('')
-  const [showScope,  setShowScope]  = React.useState(false)
+  const [input, setInput] = React.useState('')
 
   useEffect(() => {
     if (initialSessionId) loadSession(initialSessionId)
@@ -66,12 +51,6 @@ export default function ChatScreen() {
     setInput('')
     await send(text)
   }
-
-  const scopeDesc = [
-    activeCourseCode || (activeModuleTitle ? activeModuleTitle.slice(0, 18) : 'All modules'),
-    scopeMode === 'class_only'    ? 'Class only'  :
-    scopeMode === 'personal_only' ? 'My notes'    : 'All materials',
-  ].join(' · ')
 
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     if (item.role === 'user') {
@@ -131,7 +110,7 @@ export default function ChatScreen() {
           alignItems="center" justifyContent="center"
           marginBottom={5}
         >
-          <Text style={{ fontSize: 14 }}>📚</Text>
+          <Feather name="book-open" size={14} color={C.primary} />
         </Stack>
 
         <StyledPressable
@@ -169,7 +148,7 @@ export default function ChatScreen() {
                   backgroundColor={C.primaryBg}
                   borderRadius={10} paddingHorizontal={10} paddingVertical={6}
                 >
-                  <Text style={{ fontSize: 11 }}>📄</Text>
+                  <Feather name="file-text" size={11} color={C.primary} />
                   <Text
                     variant="caption" color={C.primary} fontWeight="600"
                     numberOfLines={1} style={{ flex: 1 }}
@@ -199,7 +178,7 @@ export default function ChatScreen() {
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >
       <ScreenHeader
-        title={activeCourseCode ? `${activeCourseCode} — AI Tutor` : 'AI Tutor'}
+        title={activeCourseCode || 'AI Tutor'}
         subtitle={activeModuleTitle || undefined}
         onBackPress={() => router.back()}
         rightIcon={
@@ -207,7 +186,7 @@ export default function ChatScreen() {
             onPress={() => {
               const text = formatConversationForExport(
                 messages,
-                activeCourseCode ? `${activeCourseCode} — AI Tutor` : 'AI Tutor',
+                activeCourseCode || 'AI Tutor',
               )
               shareText(text, 'studymind-conversation.txt', toast)
             }}
@@ -219,57 +198,6 @@ export default function ChatScreen() {
           </StyledPressable>
         }
       />
-
-      {/* Scope pill */}
-      <Stack paddingHorizontal={20} paddingVertical={8}>
-        <ScopePill description={scopeDesc} onPress={() => setShowScope((s) => !s)} />
-      </Stack>
-
-      {/* Scope picker */}
-      {showScope && (
-        <Stack
-          marginHorizontal={20} marginBottom={8}
-          backgroundColor={C.bgCard} borderRadius={16}
-          borderWidth={1} borderColor={C.border}
-          style={{ overflow: 'hidden' }}
-        >
-          {SCOPE_OPTIONS.map((opt, idx) => (
-            <StyledPressable
-              key={opt.key}
-              onPress={() => { setScopeMode(opt.key); setShowScope(false) }}
-              backgroundColor={scopeMode === opt.key ? C.primaryBg : C.bgCard}
-              padding={14}
-              borderBottomWidth={idx < SCOPE_OPTIONS.length - 1 ? 1 : 0}
-              borderBottomColor={C.border}
-            >
-              <Stack horizontal alignItems="center" gap={12}>
-                <Stack
-                  width={36} height={36} borderRadius={10}
-                  backgroundColor={scopeMode === opt.key ? `${C.primary}20` : C.bgMuted}
-                  alignItems="center" justifyContent="center"
-                >
-                  <Text style={{ fontSize: 16 }}>{opt.emoji}</Text>
-                </Stack>
-                <Stack flex={1} gap={2}>
-                  <Text variant="label"
-                    color={scopeMode === opt.key ? C.primary : C.textPrimary}
-                    fontWeight={scopeMode === opt.key ? '700' : '500'}
-                  >{opt.label}</Text>
-                  <Text variant="caption" color={C.textSecondary}>{opt.desc}</Text>
-                </Stack>
-                {scopeMode === opt.key && (
-                  <Stack
-                    width={22} height={22} borderRadius={11}
-                    backgroundColor={C.primary} alignItems="center" justifyContent="center"
-                  >
-                    <Text style={{ fontSize: 11, color: C.white, fontWeight: '700' }}>✓</Text>
-                  </Stack>
-                )}
-              </Stack>
-            </StyledPressable>
-          ))}
-        </Stack>
-      )}
 
       {/* Messages */}
       <FlatList
@@ -288,7 +216,7 @@ export default function ChatScreen() {
               width={72} height={72} borderRadius={22}
               backgroundColor={C.primaryBg} alignItems="center" justifyContent="center"
             >
-              <Text style={{ fontSize: 34 }}>💬</Text>
+              <Feather name="message-circle" size={30} color={C.primary} />
             </Stack>
             <Stack alignItems="center" gap={6}>
               <Text variant="title" color={C.textPrimary} fontWeight="800" textAlign="center">
@@ -297,22 +225,6 @@ export default function ChatScreen() {
               <Text variant="body" color={C.textSecondary} textAlign="center" style={{ lineHeight: 22 }}>
                 I'll answer from your uploaded course materials with source citations.
               </Text>
-            </Stack>
-            <Stack gap={8} width="100%" marginTop={4}>
-              {PROMPTS.map((p) => (
-                <StyledPressable
-                  key={p}
-                  onPress={() => { setInput(p); inputRef.current?.focus() }}
-                  backgroundColor={C.bgCard}
-                  borderRadius={12} paddingHorizontal={14} paddingVertical={11}
-                  horizontal alignItems="center" gap={10}
-                  style={{ borderWidth: 1, borderColor: C.border }}
-                >
-                  <Text style={{ fontSize: 14 }}>💡</Text>
-                  <Text variant="bodySmall" color={C.textSecondary} style={{ flex: 1 }}>{p}</Text>
-                  <Text style={{ fontSize: 14, color: C.textMuted }}>›</Text>
-                </StyledPressable>
-              ))}
             </Stack>
           </Stack>
         }
@@ -325,14 +237,14 @@ export default function ChatScreen() {
         keyboardVerticalOffset={90}
       >
         <Stack
-          backgroundColor={C.bgCard}
+          backgroundColor={C.bg}
           borderTopWidth={1} borderTopColor={C.border}
           paddingHorizontal={16} paddingTop={10}
           paddingBottom={Platform.OS === 'ios' ? 30 : 12}
           horizontal gap={10} alignItems="flex-end"
         >
           <Stack
-            flex={1} backgroundColor={C.bgInput}
+            flex={1} backgroundColor={C.bgCard}
             borderRadius={18} borderWidth={1} borderColor={C.border}
             paddingHorizontal={16} paddingVertical={10}
             style={{ minHeight: 46, maxHeight: 120 }}
@@ -349,6 +261,8 @@ export default function ChatScreen() {
                 fontSize:   14,
                 fontFamily: 'PlusJakartaSans_400Regular',
                 lineHeight: 20,
+                textAlignVertical: 'center',
+                paddingVertical: 0,
               }}
               returnKeyType="send"
               onSubmitEditing={handleSend}

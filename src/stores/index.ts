@@ -90,6 +90,26 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 }))
 
+// ─── Onboarding ─────────────────────────────────────────────────────────────
+// Plain SecureStore helpers, not a Zustand store — read once at bootstrap
+// (before the app decides its initial route) and written once when
+// onboarding finishes, with no other screen needing to subscribe to it.
+const ONBOARDING_KEY = 'studymind_onboarding_seen'
+
+export async function getOnboardingSeen(): Promise<boolean> {
+  try {
+    return (await SecureStore.getItemAsync(ONBOARDING_KEY)) === '1'
+  } catch {
+    return false
+  }
+}
+
+export async function setOnboardingSeen(): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(ONBOARDING_KEY, '1')
+  } catch {}
+}
+
 // ─── Active module store ──────────────────────────────────────────────────────
 interface ModuleState {
   activeModuleId:    string | null

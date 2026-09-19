@@ -493,6 +493,20 @@ export function useFlashcards(moduleId?: string | null) {
 
   const flip = () => setFlipped((f) => !f)
 
+  const prevCard = () => {
+    if (cardIdx > 0) {
+      setCardIdx((n) => n - 1)
+      setFlipped(false)
+    }
+  }
+
+  const nextCard = () => {
+    if (deck && cardIdx < deck.cards.length - 1) {
+      setCardIdx((n) => n + 1)
+      setFlipped(false)
+    }
+  }
+
   const updateCard = async (status: 'new' | 'learning' | 'mastered') => {
     if (!deck || updating) return
     const card = deck.cards[cardIdx]
@@ -552,7 +566,7 @@ export function useFlashcards(moduleId?: string | null) {
     deck, decks, cardIdx, flipped, currentCard,
     masteredCount, totalCards, progressPct,
     generating, updating,
-    generate, flip, updateCard, openDeck, closeDeck,
+    generate, flip, prevCard, nextCard, updateCard, openDeck, closeDeck,
   }
 }
 

@@ -1,6 +1,7 @@
 import React from 'react'
 import { Platform } from 'react-native'
 import { router } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
 import {
   StyledPage, StyledScrollView, Stack,
   StyledCard, StyledPressable,
@@ -9,19 +10,19 @@ import { Text } from '../../src/components/Text'
 import { useColors, useIsDark } from '../../src/constants'
 import { useAuthStore } from '../../src/stores'
 
-const RECENT_ACTIVITY = [
-  { emoji: '📝', label: 'Completed quiz',      sub: 'CSC109 · 8/10 correct',  time: '2h ago',  color: 'quizColor'  },
-  { emoji: '💬', label: 'AI Tutor session',    sub: 'Asked 5 questions',       time: '4h ago',  color: 'chatColor'  },
-  { emoji: '🃏', label: 'Flashcard review',    sub: '15/20 cards mastered',    time: 'Yesterday', color: 'flashColor' },
-  { emoji: '📋', label: 'Generated summary',   sub: 'CSC109 — Module overview', time: '2d ago', color: 'sumColor'   },
-  { emoji: '📕', label: 'Document uploaded',   sub: 'Week4_Lecture.pdf',       time: '3d ago',  color: 'primary'    },
+const RECENT_ACTIVITY: { icon: keyof typeof Feather.glyphMap; label: string; sub: string; time: string; color: string }[] = [
+  { icon: 'help-circle',    label: 'Completed quiz',      sub: 'CSC109 · 8/10 correct',    time: '2h ago',     color: 'quizColor'  },
+  { icon: 'message-circle', label: 'AI Tutor session',    sub: 'Asked 5 questions',        time: '4h ago',     color: 'chatColor'  },
+  { icon: 'credit-card',    label: 'Flashcard review',    sub: '15/20 cards mastered',     time: 'Yesterday',  color: 'flashColor' },
+  { icon: 'clipboard',      label: 'Generated summary',   sub: 'CSC109 — Module overview', time: '2d ago',     color: 'sumColor'   },
+  { icon: 'file-text',      label: 'Document uploaded',   sub: 'Week4_Lecture.pdf',        time: '3d ago',     color: 'primary'    },
 ]
 
-const STATS = [
-  { emoji: '📝', label: 'Quizzes taken',   value: '12' },
-  { emoji: '🃏', label: 'Cards mastered',  value: '86' },
-  { emoji: '💬', label: 'AI conversations', value: '24' },
-  { emoji: '📋', label: 'Summaries',        value: '5'  },
+const STATS: { icon: keyof typeof Feather.glyphMap; label: string; value: string }[] = [
+  { icon: 'help-circle',    label: 'Quizzes taken',    value: '12' },
+  { icon: 'credit-card',    label: 'Cards mastered',   value: '86' },
+  { icon: 'message-circle', label: 'AI conversations', value: '24' },
+  { icon: 'clipboard',      label: 'Summaries',        value: '5'  },
 ]
 
 export default function ActivityScreen() {
@@ -45,11 +46,11 @@ export default function ActivityScreen() {
         <Stack style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }} marginBottom={24}>
           {STATS.map((stat) => (
             <Stack
-              key={stat.label} style={{ width: '47%' }}
+              key={stat.label}
               backgroundColor={C.bgCard} borderRadius={18} padding={18}
               style={{ borderWidth: 1, borderColor: C.border, width: '47%' }}
             >
-              <Text style={{ fontSize: 24, marginBottom: 8 }}>{stat.emoji}</Text>
+              <Feather name={stat.icon} size={22} color={C.primary} style={{ marginBottom: 8 }} />
               <Text variant="metric" color={C.textPrimary} fontWeight="800"
                 style={{ fontSize: 28, lineHeight: 32, marginBottom: 4 }}
               >{stat.value}</Text>
@@ -76,7 +77,7 @@ export default function ActivityScreen() {
                     width={42} height={42} borderRadius={12}
                     backgroundColor={bg} alignItems="center" justifyContent="center"
                   >
-                    <Text style={{ fontSize: 18 }}>{item.emoji}</Text>
+                    <Feather name={item.icon} size={18} color={color} />
                   </Stack>
                   <Stack flex={1} gap={3}>
                     <Text variant="label" color={C.textPrimary} fontWeight="600">

@@ -9,8 +9,9 @@ import {
 } from '../db/notes'
 
 export function useNotes(moduleId: string | null) {
-  const [notes,   setNotes]   = useState<Note[]>([])
-  const [loading, setLoading] = useState(false)
+  const [notes,     setNotes]     = useState<Note[]>([])
+  const [loading,    setLoading]  = useState(false)
+  const [syncingId,  setSyncingId] = useState<string | null>(null)
   const toast  = useToast()
   const loader = useLoader()
 
@@ -48,8 +49,13 @@ export function useNotes(moduleId: string | null) {
     loadNotes()
   }
 
-  const syncNoteToBackend = async (note: Note) => {
-    if (!moduleId) return
+  // Guards against duplicate taps: each sync is a fresh upload that creates a
+  // new backend document, so firing it twice in a row (e.g. an impatient
+  // double-tap) would leave two indexed copies of the same note behind.
+  const syncNoteToBackend = async (note: Note): Promise<boolean> => {
+    if (!moduleId) return false
+    if (syncingId === note.id) return false
+    setSyncingId(note.id)
     const loadId = loader.show({ label: 'Saving to AI…', variant: 'dots' })
     try {
       // Write note content to a temp file
@@ -67,11 +73,23 @@ export function useNotes(moduleId: string | null) {
       markNoteSynced(note.id, res.document_id)
       loadNotes()
       toast.success('Saved to AI!', 'Your note is now searchable by the AI tutor.')
+      return true
     } catch (e: any) {
       toast.error('Sync failed', e.message)
+      return false
     } finally {
       loader.hide(loadId)
+      setSyncingId(null)
     }
+  }
+
+  // Used before jumping into an AI feature (chat/quiz/flashcards/summary)
+  // from a note — syncs first if needed so the AI actually has the note's
+  // content to work with, instead of relying on the student remembering to
+  // sync it themselves beforehand.
+  const ensureSynced = async (note: Note): Promise<boolean> => {
+    if (note.synced) return true
+    return syncNoteToBackend(note)
   }
 
   const deleteNote = (id: string) => {
@@ -79,5 +97,8 @@ export function useNotes(moduleId: string | null) {
     loadNotes()
   }
 
-  return { notes, loading, loadNotes, createNote, updateNote, syncNoteToBackend, deleteNote }
+  return {
+    notes, loading, syncingId, loadNotes, createNote, updateNote,
+    syncNoteToBackend, ensureSynced, deleteNote,
+  }
 }

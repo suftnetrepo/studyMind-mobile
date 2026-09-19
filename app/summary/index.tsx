@@ -16,31 +16,31 @@ import { useSummary, type SummaryScope } from '../../src/hooks'
 import { copyToClipboard, shareText, formatSummaryForExport } from '../../src/utils/share'
 
 const SCOPE_OPTIONS: {
-  key: SummaryScope; label: string; emoji: string; desc: string
+  key: SummaryScope; label: string; icon: keyof typeof Feather.glyphMap; desc: string
 }[] = [
-  { key: 'module',   label: 'Full module',     emoji: '📚', desc: 'All materials in this module' },
-  { key: 'week',     label: 'Current week',    emoji: '📅', desc: "This week's uploaded materials" },
-  { key: 'document', label: 'Latest document', emoji: '📄', desc: 'The most recently uploaded file' },
+  { key: 'module',   label: 'Full module',     icon: 'book-open', desc: 'All materials in this module' },
+  { key: 'week',     label: 'Current week',    icon: 'calendar',  desc: "This week's uploaded materials" },
+  { key: 'document', label: 'Latest document', icon: 'file-text', desc: 'The most recently uploaded file' },
 ]
 
-const SECTION_ICONS: Record<string, string> = {
-  'Key Concepts':                  '💡',
-  'Main Arguments':                '📌',
-  'Main Arguments / Explanations': '📌',
-  'Important Definitions':         '📖',
-  'Exam Tips':                     '🎯',
+const SECTION_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
+  'Key Concepts':                  'zap',
+  'Main Arguments':                'flag',
+  'Main Arguments / Explanations': 'flag',
+  'Important Definitions':         'book',
+  'Exam Tips':                     'target',
 }
 
-function parseMarkdown(content: string): { heading: string; lines: string[]; icon: string }[] {
-  const sections: { heading: string; lines: string[]; icon: string }[] = []
-  let current: { heading: string; lines: string[]; icon: string } | null = null
+function parseMarkdown(content: string): { heading: string; lines: string[]; icon: keyof typeof Feather.glyphMap }[] {
+  const sections: { heading: string; lines: string[]; icon: keyof typeof Feather.glyphMap }[] = []
+  let current: { heading: string; lines: string[]; icon: keyof typeof Feather.glyphMap } | null = null
 
   for (const raw of content.split('\n')) {
     const line = raw.trim()
     if (line.startsWith('## ')) {
       if (current) sections.push(current)
       const heading = line.replace('## ', '').trim()
-      current = { heading, icon: SECTION_ICONS[heading] || '📌', lines: [] }
+      current = { heading, icon: SECTION_ICONS[heading] || 'flag', lines: [] }
     } else if (current && line) {
       current.lines.push(line.replace(/^[-•*]\s*/, '').trim())
     }
@@ -71,7 +71,7 @@ export default function SummaryScreen() {
 
           {!activeModuleId ? (
             <EmptyState
-              emoji="📋"
+              icon="clipboard"
               title="No module selected"
               subtitle="Open a module first, then generate a structured summary."
               action={{ label: 'Browse modules', onPress: () => router.push('/(tabs)/modules' as any) }}
@@ -87,7 +87,7 @@ export default function SummaryScreen() {
                     width={46} height={46} borderRadius={13}
                     backgroundColor={`${C.sumColor}20`} alignItems="center" justifyContent="center"
                   >
-                    <Text style={{ fontSize: 22 }}>📋</Text>
+                    <Feather name="clipboard" size={20} color={C.sumColor} />
                   </Stack>
                   <Stack flex={1}>
                     <Text variant="overline" color={C.sumColor}>Summarising</Text>
@@ -103,7 +103,7 @@ export default function SummaryScreen() {
                 Summary scope
               </Text>
               <Stack gap={10} marginBottom={24}>
-                {SCOPE_OPTIONS.map(({ key, label, emoji, desc }) => (
+                {SCOPE_OPTIONS.map(({ key, label, icon, desc }) => (
                   <StyledPressable
                     key={key}
                     backgroundColor={scope === key ? C.sumBg : C.bgCard}
@@ -122,7 +122,7 @@ export default function SummaryScreen() {
                       backgroundColor={scope === key ? `${C.sumColor}20` : C.bgMuted}
                       alignItems="center" justifyContent="center"
                     >
-                      <Text style={{ fontSize: 20 }}>{emoji}</Text>
+                      <Feather name={icon} size={18} color={scope === key ? C.sumColor : C.textSecondary} />
                     </Stack>
                     <Stack flex={1} gap={3}>
                       <Text variant="label"
@@ -136,7 +136,7 @@ export default function SummaryScreen() {
                         width={24} height={24} borderRadius={12}
                         backgroundColor={C.sumColor} alignItems="center" justifyContent="center"
                       >
-                        <Text style={{ fontSize: 12, color: C.white, fontWeight: '700' }}>✓</Text>
+                        <Feather name="check" size={13} color={C.white} />
                       </Stack>
                     )}
                   </StyledPressable>
@@ -160,7 +160,7 @@ export default function SummaryScreen() {
                               width={40} height={40} borderRadius={11}
                               backgroundColor={C.sumBg} alignItems="center" justifyContent="center"
                             >
-                              <Text style={{ fontSize: 18 }}>📋</Text>
+                              <Feather name="clipboard" size={16} color={C.sumColor} />
                             </Stack>
                             <Stack flex={1} gap={3}>
                               <Text variant="label" color={C.textPrimary} fontWeight="600">
@@ -306,7 +306,7 @@ export default function SummaryScreen() {
                   width={40} height={40} borderRadius={12}
                   backgroundColor={C.sumBg} alignItems="center" justifyContent="center"
                 >
-                  <Text style={{ fontSize: 18 }}>{section.icon}</Text>
+                  <Feather name={section.icon} size={17} color={C.sumColor} />
                 </Stack>
                 <Text variant="subtitle" color={C.textPrimary} fontWeight="700">
                   {section.heading}

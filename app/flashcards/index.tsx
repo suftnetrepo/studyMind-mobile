@@ -1,6 +1,7 @@
 import React from 'react'
 import { Platform, TextInput } from 'react-native'
 import { router } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
 import {
   StyledPage, StyledScrollView, Stack,
   StyledCard, StyledPressable, StyledButton,
@@ -27,7 +28,7 @@ export default function FlashcardsScreen() {
     deck, decks, cardIdx, flipped, currentCard,
     masteredCount, totalCards, progressPct,
     generating, updating,
-    generate, flip, updateCard, openDeck, closeDeck,
+    generate, flip, prevCard, nextCard, updateCard, openDeck, closeDeck,
   } = useFlashcards(activeModuleId)
 
   // ── Deck picker / generate ─────────────────────────────────────────────────
@@ -42,7 +43,7 @@ export default function FlashcardsScreen() {
 
           {!activeModuleId ? (
             <EmptyState
-              emoji="🃏"
+              icon="credit-card"
               title="No module selected"
               subtitle="Open a module first, then generate flashcards from its materials."
               action={{ label: 'Browse modules', onPress: () => router.push('/(tabs)/modules' as any) }}
@@ -203,12 +204,14 @@ export default function FlashcardsScreen() {
         onBackPress={closeDeck}
         rightIcon={
           <Stack
+            horizontal alignItems="center" gap={4}
             backgroundColor={C.flashBg} borderRadius={10}
             paddingHorizontal={10} paddingVertical={5}
           >
             <Text variant="caption" color={C.flashColor} fontWeight="700">
-              {masteredCount}/{totalCards} ✓
+              {masteredCount}/{totalCards}
             </Text>
+            <Feather name="check" size={11} color={C.flashColor} />
           </Stack>
         }
       />
@@ -291,7 +294,7 @@ export default function FlashcardsScreen() {
             style={{ borderWidth: 1, borderColor: `${C.flashColor}30` }}
           >
             <Stack horizontal gap={8} alignItems="flex-start">
-              <Text style={{ fontSize: 14, marginTop: 1 }}>📄</Text>
+              <Feather name="file-text" size={14} color={C.flashColor} style={{ marginTop: 1 }} />
               <Stack flex={1} gap={3}>
                 <Text variant="caption" color={C.flashColor} fontWeight="700">Source</Text>
                 <Text variant="caption" color={C.textSecondary} style={{ lineHeight: 18, fontStyle: 'italic' }}>
@@ -310,23 +313,30 @@ export default function FlashcardsScreen() {
             borderRadius={14} paddingVertical={14}
             alignItems="center"
             borderWidth={1} borderColor={C.border}
-            onPress={() => { /* go back handled in hook */ }}
+            onPress={prevCard}
             disabled={cardIdx === 0}
             style={{ opacity: cardIdx === 0 ? 0.4 : 1 }}
           >
-            <Text variant="label" color={C.textPrimary}>← Back</Text>
+            <Stack horizontal alignItems="center" gap={5}>
+              <Feather name="chevron-left" size={15} color={C.textPrimary} />
+              <Text variant="label" color={C.textPrimary}>Previous</Text>
+            </Stack>
           </StyledPressable>
 
           <StyledPressable
-            flex={1.4}
-            backgroundColor={C.errorBg}
+            flex={1}
+            backgroundColor={C.bgCard}
             borderRadius={14} paddingVertical={14}
             alignItems="center"
-            borderWidth={1} borderColor={`${C.error}30`}
-            onPress={() => updateCard('learning')}
-            disabled={updating}
+            borderWidth={1} borderColor={C.border}
+            onPress={nextCard}
+            disabled={cardIdx === totalCards - 1}
+            style={{ opacity: cardIdx === totalCards - 1 ? 0.4 : 1 }}
           >
-            <Text variant="label" color={C.error} fontWeight="700">Still learning</Text>
+            <Stack horizontal alignItems="center" gap={5}>
+              <Text variant="label" color={C.textPrimary}>Next</Text>
+              <Feather name="chevron-right" size={15} color={C.textPrimary} />
+            </Stack>
           </StyledPressable>
 
           <StyledPressable
@@ -342,7 +352,10 @@ export default function FlashcardsScreen() {
               shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
             } : undefined}
           >
-            <Text variant="label" color={C.flashColor} fontWeight="700">Mastered ✓</Text>
+            <Stack horizontal alignItems="center" gap={5}>
+              <Text variant="label" color={C.flashColor} fontWeight="700">Mastered</Text>
+              <Feather name="check" size={14} color={C.flashColor} />
+            </Stack>
           </StyledPressable>
         </Stack>
 

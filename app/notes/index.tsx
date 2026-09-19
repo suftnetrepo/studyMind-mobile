@@ -16,7 +16,7 @@ export default function NotesListScreen() {
   const C      = useColors()
   const isDark = useIsDark()
   const { activeModuleId, activeCourseCode } = useModuleStore()
-  const { notes, loadNotes, createNote, syncNoteToBackend, deleteNote } = useNotes(activeModuleId)
+  const { notes, loadNotes, createNote, syncNoteToBackend, ensureSynced, deleteNote } = useNotes(activeModuleId)
   const actionSheet = useActionSheet()
   const backShape = getBackShapeProps(C)
   const backArrow = getBackArrowProps(C)
@@ -37,6 +37,14 @@ export default function NotesListScreen() {
     router.push(`/notes/${note.id}`)
   }
 
+  // Syncs first if the note hasn't been saved to AI yet, then navigates —
+  // so these actions always have content to actually work with, instead of
+  // relying on the student having remembered to sync beforehand.
+  const goToAIFeature = async (note: any, route: string) => {
+    const ok = await ensureSynced(note)
+    if (ok) router.push(route as any)
+  }
+
   const handleNoteLongPress = (note: any) => {
     actionSheet.show({
       title: note.title,
@@ -49,22 +57,22 @@ export default function NotesListScreen() {
         {
           icon: '💬',
           label: 'Chat about this note',
-          onPress: () => { router.push('/chat') },
+          onPress: () => goToAIFeature(note, '/chat'),
         },
         {
           icon: '📝',
           label: 'Quiz from this note',
-          onPress: () => { router.push('/quiz') },
+          onPress: () => goToAIFeature(note, '/quiz'),
         },
         {
           icon: '🃏',
           label: 'Flashcards from this note',
-          onPress: () => { router.push('/flashcards') },
+          onPress: () => goToAIFeature(note, '/flashcards'),
         },
         {
           icon: '📋',
           label: 'Summarise this note',
-          onPress: () => { router.push('/summary') },
+          onPress: () => goToAIFeature(note, '/summary'),
         },
         {
           icon: '🗑',
@@ -95,10 +103,7 @@ export default function NotesListScreen() {
             >
               <Feather name="arrow-left" size={backArrow.size} color={backArrow.color} />
             </StyledPressable>
-            <Stack gap={2}>
-              <Text variant="overline" color={C.textSecondary}>{activeCourseCode}</Text>
-              <Text variant="title" color={C.textPrimary} fontWeight="800">My Notes</Text>
-            </Stack>
+            <Text variant="title" color={C.textPrimary} fontWeight="800">Notes</Text>
           </Stack>
           <StyledButton
             backgroundColor={C.flashColor} borderRadius={12}
@@ -162,12 +167,6 @@ export default function NotesListScreen() {
                     style={{ borderWidth: 1, borderColor: C.border }}
                   >
                     <Stack horizontal alignItems="flex-start" gap={12}>
-                      {/* Sync status indicator */}
-                      <Stack
-                        width={10} height={10} borderRadius={5}
-                        backgroundColor={note.synced ? C.flashColor : C.warning}
-                        style={{ marginTop: 5, flexShrink: 0 }}
-                      />
                       <Stack flex={1} gap={5}>
                         <Stack horizontal alignItems="center" justifyContent="space-between">
                           <Text variant="label" color={C.textPrimary} fontWeight="700"
