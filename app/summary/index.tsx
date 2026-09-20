@@ -1,5 +1,5 @@
 import React from 'react'
-import { Platform, TextInput } from 'react-native'
+import { Platform, TextInput, ScrollView } from 'react-native'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import {
@@ -102,46 +102,32 @@ export default function SummaryScreen() {
               <Text variant="label" color={C.textPrimary} fontWeight="700" marginBottom={10}>
                 Summary scope
               </Text>
-              <Stack gap={10} marginBottom={24}>
-                {SCOPE_OPTIONS.map(({ key, label, icon, desc }) => (
-                  <StyledPressable
-                    key={key}
-                    backgroundColor={scope === key ? C.sumBg : C.bgCard}
-                    borderRadius={16} padding={16}
-                    borderWidth={scope === key ? 2 : 1}
-                    borderColor={scope === key ? C.sumColor : C.border}
-                    horizontal alignItems="center" gap={14}
-                    onPress={() => setScope(key)}
-                    style={scope === key ? {
-                      shadowColor: C.sumColor, shadowOpacity: 0.12,
-                      shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
-                    } : undefined}
-                  >
-                    <Stack
-                      width={46} height={46} borderRadius={13}
-                      backgroundColor={scope === key ? `${C.sumColor}20` : C.bgMuted}
-                      alignItems="center" justifyContent="center"
-                    >
-                      <Feather name={icon} size={18} color={scope === key ? C.sumColor : C.textSecondary} />
-                    </Stack>
-                    <Stack flex={1} gap={3}>
-                      <Text variant="label"
-                        color={scope === key ? C.sumColor : C.textPrimary}
-                        fontWeight={scope === key ? '700' : '500'}
-                      >{label}</Text>
-                      <Text variant="caption" color={C.textSecondary}>{desc}</Text>
-                    </Stack>
-                    {scope === key && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+                style={{ marginBottom: 24, flexGrow: 0 }}
+              >
+                {SCOPE_OPTIONS.map(({ key, label, icon }) => {
+                  const active = scope === key
+                  return (
+                    <StyledPressable key={key} onPress={() => setScope(key)}>
                       <Stack
-                        width={24} height={24} borderRadius={12}
-                        backgroundColor={C.sumColor} alignItems="center" justifyContent="center"
+                        horizontal alignItems="center" gap={7}
+                        backgroundColor={active ? C.sumBg : C.bgCard}
+                        borderRadius={50} paddingHorizontal={16} paddingVertical={10}
+                        style={{ borderWidth: 1.5, borderColor: active ? C.sumColor : C.border }}
                       >
-                        <Feather name="check" size={13} color={C.white} />
+                        <Feather name={icon} size={14} color={active ? C.sumColor : C.textSecondary} />
+                        <Text variant="label"
+                          color={active ? C.sumColor : C.textSecondary}
+                          fontWeight={active ? '700' : '500'}
+                        >{label}</Text>
                       </Stack>
-                    )}
-                  </StyledPressable>
-                ))}
-              </Stack>
+                    </StyledPressable>
+                  )
+                })}
+              </ScrollView>
 
               {/* Previous summaries */}
               {summaries.length > 0 && (

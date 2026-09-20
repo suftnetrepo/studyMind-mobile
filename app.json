@@ -15,7 +15,12 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.suftnet.studymind",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "StudyMind uses your camera to scan documents and questions.",
+        "NSMicrophoneUsageDescription": "StudyMind uses your microphone for voice input in the AI tutor.",
+        "NSPhotoLibraryUsageDescription": "StudyMind accesses your photo library to scan documents and questions."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +28,11 @@
         "backgroundColor": "#5B7FFF"
       },
       "package": "com.suftnet.studymind",
-      "versionCode": 1
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",

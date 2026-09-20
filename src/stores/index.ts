@@ -110,6 +110,23 @@ export async function setOnboardingSeen(): Promise<void> {
   } catch {}
 }
 
+// Per-user flag: role setup was finished or skipped, so don't nag again.
+const setupKey = (userId: string) => `studymind_setup_done_${userId}`
+
+export async function getSetupDone(userId: string): Promise<boolean> {
+  try {
+    return (await SecureStore.getItemAsync(setupKey(userId))) === '1'
+  } catch {
+    return false
+  }
+}
+
+export async function setSetupDone(userId: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(setupKey(userId), '1')
+  } catch {}
+}
+
 // ─── Active module store ──────────────────────────────────────────────────────
 interface ModuleState {
   activeModuleId:    string | null

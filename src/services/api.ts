@@ -197,6 +197,18 @@ export const moduleService = {
     ),
   enrolByCode: (enrolmentCode: string) =>
     api.post<any>(`/api/modules/${PLACEHOLDER_MODULE_ID}/enrol`, { enrolment_code: enrolmentCode }),
+  joinInstitution: (code: string) =>
+    api.post<any>('/api/institutions/join', { code }),
+  createModule: (title: string, courseCode: string, emoji?: string, accessType: 'personal' | 'class' = 'personal') =>
+    api.post<any>('/api/modules', {
+      title, course_code: courseCode || undefined, emoji, access_type: accessType,
+    }),
+  createEnrolmentCode: (moduleId: string) =>
+    api.post<{ code: string; module_id: string }>(`/api/modules/${moduleId}/enrolment-code`),
+  pasteText: (moduleId: string, title: string, content: string, visibility: 'class' | 'personal' = 'class') =>
+    api.post<any>(`/api/modules/${moduleId}/documents/paste`, { title, content, visibility }),
+  generateMaterial: (moduleId: string, topic: string, level = 'intermediate', visibility: 'class' | 'personal' = 'class') =>
+    api.post<any>(`/api/modules/${moduleId}/documents/generate`, { topic, level, visibility }),
   documents: (moduleId: string) => api.get<any[]>(`/api/modules/${moduleId}/documents`),
   uploadDocument: (moduleId: string, file: { uri: string; name: string; type: string }, visibility = 'class') => {
     const form = new FormData()
@@ -209,12 +221,31 @@ export const moduleService = {
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 export const chatService = {
-  send: (message: string, moduleId?: string, sessionId?: string, scopeMode = 'everything') =>
+  send: (
+    message: string, moduleId?: string, sessionId?: string,
+    scopeMode = 'everything', complexity = 'normal',
+  ) =>
     api.post<any>('/api/chat', {
       message,
       module_id:  moduleId || undefined,
       session_id: sessionId || undefined,
       scope_mode: scopeMode,
+      complexity,
+    }),
+  sendGeneral: (message: string, sessionId?: string, complexity = 'normal') =>
+    api.post<any>('/api/chat/general', {
+      message,
+      session_id: sessionId || undefined,
+      complexity,
+    }),
+  extractFromImage: (base64: string, mimeType: string) =>
+    api.post<{ text: string }>('/api/chat/extract-image', {
+      image_base64: base64,
+      mime_type:    mimeType,
+    }),
+  transcribeAudio: (base64Audio: string) =>
+    api.post<{ text: string }>('/api/chat/transcribe', {
+      audio_base64: base64Audio,
     }),
   sessions:   (moduleId?: string) =>
     api.get<any[]>(`/api/sessions${moduleId ? `?module_id=${moduleId}` : ''}`),
@@ -256,4 +287,52 @@ export const summaryService = {
   list:     (moduleId?: string) =>
     api.get<any[]>(`/api/summarise${moduleId ? `?module_id=${moduleId}` : ''}`),
   get:      (id: string) => api.get<any>(`/api/summarise/${id}`),
+}
+
+// ─── Writing assistant ────────────────────────────────────────────────────────
+export const writingService = {
+  generate: (params: {
+    mode:         string
+    input:        string
+    format?:      string
+    tone?:        string
+    essay_type?:  string
+    level?:       string
+    length?:      string
+    paragraphs?:  string
+    modify_type?: string
+  }) => api.post<{ content: string }>('/api/writing/generate', params),
+}
+
+// ─── Activity / streaks ───────────────────────────────────────────────────────
+export interface StreakData {
+  streak_days:      number
+  active_dates:     string[]
+  week_active:      string[]
+  week_start:       string
+  weekly_count:     number
+  weekly_target:    number
+  weekly_progress:  number
+  breakdown:        Record<string, number>
+  total_activities: number
+  recent_activities: {
+    id: string; type: string; module_id: string | null
+    course_code: string | null; module_title: string | null
+    date: string; created_at: string
+  }[]
+}
+
+export interface ActivitySummary {
+  chat: number; quiz: number; flashcard: number; summary: number
+  document_upload: number; notes: number; total: number
+}
+
+export const activityService = {
+  streak:  () => api.get<StreakData>('/api/activity/streak'),
+  summary: () => api.get<ActivitySummary>('/api/activity/summary'),
+}
+
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+export const onboardingService = {
+  status: () => api.get<{ complete: boolean; role: string; module_count?: number }>('/api/onboarding/status'),
 }

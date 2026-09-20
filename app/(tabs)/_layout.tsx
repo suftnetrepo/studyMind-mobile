@@ -1,14 +1,39 @@
-import React from 'react'
-import { Tabs } from 'expo-router'
+import React, { useEffect } from 'react'
+import { Tabs, router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { useColors } from '../../src/constants'
+import { useAuthStore, getSetupDone } from '../../src/stores'
+import { onboardingService } from '../../src/services/api'
 
 const Icon = ({ name, color }: { name: keyof typeof Feather.glyphMap; color: string }) => (
   <Feather name={name} size={22} color={color} />
 )
 
+const SETUP_ROUTES: Record<string, string> = {
+  student:      '/setup/student',
+  lecturer:     '/setup/lecturer',
+  self_learner: '/setup/self-learner',
+}
+
 export default function TabsLayout() {
   const C = useColors()
+  const user = useAuthStore((s) => s.user)
+
+  // First launch after sign-in: send users who haven't set up their role to the right flow.
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+    ;(async () => {
+      const route = SETUP_ROUTES[user.role]
+      if (!route || (await getSetupDone(user.id))) return
+      try {
+        const status = await onboardingService.status()
+        if (!cancelled && !status.complete) router.replace(route as any)
+      } catch {}
+    })()
+    return () => { cancelled = true }
+  }, [user?.id, user?.role])
+
   return (
     <Tabs
       screenOptions={{

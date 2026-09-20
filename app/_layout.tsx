@@ -100,6 +100,12 @@ export default function RootLayout() {
             <Stack.Screen name="auth/register"  options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="module/[id]"    options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="chat/index"     options={{ headerShown: false, animation: 'slide_from_right' }} />
+            <Stack.Screen name="general-chat/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
+            <Stack.Screen name="writing-assistant/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
+            <Stack.Screen name="setup/student"      options={{ headerShown: false, animation: 'fade' }} />
+            <Stack.Screen name="setup/lecturer"     options={{ headerShown: false, animation: 'fade' }} />
+            <Stack.Screen name="setup/self-learner" options={{ headerShown: false, animation: 'fade' }} />
+            <Stack.Screen name="setup/paste-text"   options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="quiz/index"     options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="flashcards/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="summary/index"  options={{ headerShown: false, animation: 'slide_from_right' }} />

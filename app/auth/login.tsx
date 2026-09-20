@@ -3,12 +3,17 @@ import { Platform, KeyboardAvoidingView } from 'react-native'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import {
-  StyledPage, StyledScrollView, Stack,
-  StyledCard, StyledButton, StyledPressable, StyledForm,
+  StyledPage, StyledScrollView, Stack, StyledCard, StyledPressable, StyledForm,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
+import { AuthBackground, BrandMark, GradientButton, OrDivider, EyeToggle, EMAIL_RE } from '../../src/components/AuthUI'
 import { useColors, useIsDark, getFieldColors } from '../../src/constants'
 import { useAuth } from '../../src/hooks'
+
+const DEMOS = [
+  { role: 'Lecturer', icon: 'briefcase', email: 'lecturer@demo.ac.uk', password: 'Lecturer1234' },
+  { role: 'Student',  icon: 'award',     email: 'student@demo.ac.uk',  password: 'Student1234'  },
+] as const
 
 export default function LoginScreen() {
   const C      = useColors()
@@ -17,41 +22,41 @@ export default function LoginScreen() {
 
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
+  const [showPw,   setShowPw]   = useState(false)
+  const [tried,    setTried]    = useState(false)
 
   const FC = getFieldColors(C)
+  const emailError = tried && !EMAIL_RE.test(email.trim()) ? 'Enter a valid email address' : undefined
+  const pwError    = tried && !password ? 'Enter your password' : undefined
+
+  const submit = () => {
+    setTried(true)
+    if (!EMAIL_RE.test(email.trim()) || !password) return
+    login(email, password)
+  }
 
   return (
     <StyledPage flex={1} backgroundColor={C.bg} showStatusBar
       statusBarStyle={isDark ? 'light-content' : 'dark-content'}
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >
+      <AuthBackground />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <StyledScrollView
           contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 56, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Logo */}
-          <Stack alignItems="center" gap={12} marginBottom={40}>
-            <Stack
-              width={72} height={72} borderRadius={22}
-              backgroundColor={C.primary} alignItems="center" justifyContent="center"
-              style={{
-                shadowColor: C.primary, shadowOpacity: 0.45,
-                shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 10,
-              }}
-            >
-              <Feather name="book-open" size={32} color={C.white} />
-            </Stack>
-            <Stack alignItems="center" gap={4}>
-              <Text variant="header" color={C.textPrimary} fontWeight="800">StudyMind AI</Text>
-              <Text variant="body" color={C.textSecondary}>Your AI-powered study assistant</Text>
-            </Stack>
+          <Stack marginBottom={36}>
+            <BrandMark title="StudyMind AI" subtitle="Your AI-powered study assistant" />
           </Stack>
 
-          {/* Fields */}
-          <StyledCard backgroundColor={C.bgCard} borderRadius={20} padding={20} marginBottom={16}
-            style={{ borderWidth: 1, borderColor: C.border }}
+          <StyledCard backgroundColor={C.bgCard} borderRadius={22} padding={20} marginBottom={14}
+            style={{
+              borderWidth: 1, borderColor: C.border,
+              shadowColor: C.primary, shadowOpacity: 0.08, shadowRadius: 18,
+              shadowOffset: { width: 0, height: 8 }, elevation: 4,
+            }}
           >
             <Stack gap={16}>
               <StyledForm.Input
@@ -61,6 +66,10 @@ export default function LoginScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+                errorMessage={emailError}
+                leftIcon={<Feather name="mail" size={18} color={C.textSecondary} />}
                 colors={FC}
               />
               <StyledForm.Input
@@ -68,52 +77,63 @@ export default function LoginScreen() {
                 placeholder="••••••••"
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
+                secureTextEntry={!showPw}
+                returnKeyType="go"
+                onSubmitEditing={submit}
+                errorMessage={pwError}
+                leftIcon={<Feather name="lock" size={18} color={C.textSecondary} />}
+                rightIcon={<EyeToggle shown={showPw} onPress={() => setShowPw((v) => !v)} />}
                 colors={FC}
               />
             </Stack>
           </StyledCard>
 
-          <Stack alignItems="flex-end" marginBottom={20}>
-            <StyledPressable>
-              <Text variant="bodySmall" color={C.primary} fontWeight="600">Forgot password?</Text>
-            </StyledPressable>
+          <Stack marginTop={8}>
+            <GradientButton label="Sign in" loading={loading} onPress={submit} />
           </Stack>
 
-          <StyledButton
-            backgroundColor={C.primary} borderRadius={16} paddingVertical={16}
-            loading={loading} onPress={() => login(email, password)}
-            style={{
-              shadowColor: C.primary, shadowOpacity: 0.35,
-              shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 8,
-            }}
-          >
-            <Text variant="button" color={C.white}>
-              {loading ? 'Please wait…' : 'Sign in'}
-            </Text>
-          </StyledButton>
+          <OrDivider />
 
-          <Stack horizontal alignItems="center" justifyContent="center" gap={5} marginTop={20}>
+          <Stack horizontal alignItems="center" justifyContent="center" gap={5}>
             <Text variant="bodySmall" color={C.textSecondary}>Don't have an account?</Text>
             <StyledPressable onPress={() => router.push('/auth/register')}>
               <Text variant="bodySmall" color={C.primary} fontWeight="700">Create one</Text>
             </StyledPressable>
           </Stack>
 
-          {/* Demo hint */}
-          <StyledCard
-            backgroundColor={C.primaryBg} borderRadius={14} padding={16} marginTop={24}
-            style={{ borderWidth: 1, borderColor: `${C.primary}30` }}
-          >
-            <Stack horizontal alignItems="center" gap={10}>
-              <Feather name="info" size={17} color={C.primary} />
-              <Stack flex={1} gap={3}>
-                <Text variant="caption" color={C.primary} fontWeight="700">Demo credentials</Text>
-                <Text variant="caption" color={C.textSecondary}>lecturer@demo.ac.uk  /  Lecturer1234</Text>
-                <Text variant="caption" color={C.textSecondary}>student@demo.ac.uk  /  Student1234</Text>
+          {__DEV__ && (
+            <StyledCard
+              backgroundColor={C.primaryBg} borderRadius={16} padding={14} marginTop={26}
+              style={{ borderWidth: 1, borderColor: `${C.primary}30` }}
+            >
+              <Stack gap={10}>
+                <Stack horizontal alignItems="center" gap={8}>
+                  <Feather name="info" size={15} color={C.primary} />
+                  <Text variant="caption" color={C.primary} fontWeight="700">
+                    Demo credentials (tap to fill)
+                  </Text>
+                </Stack>
+                {DEMOS.map((d) => (
+                  <StyledPressable key={d.role} onPress={() => { setEmail(d.email); setPassword(d.password) }}>
+                    <Stack horizontal alignItems="center" gap={12} backgroundColor={C.bgCard}
+                      borderRadius={12} padding={10}
+                    >
+                      <Stack width={34} height={34} borderRadius={10} backgroundColor={C.primaryBg}
+                        alignItems="center" justifyContent="center"
+                      >
+                        <Feather name={d.icon} size={15} color={C.primary} />
+                      </Stack>
+                      <Stack flex={1}>
+                        <Text variant="caption" color={C.textPrimary} fontWeight="700">{d.role}</Text>
+                        <Text variant="caption" color={C.textSecondary}>{d.email}</Text>
+                      </Stack>
+                      <Feather name="corner-down-left" size={14} color={C.textMuted} />
+                    </Stack>
+                  </StyledPressable>
+                ))}
               </Stack>
-            </Stack>
-          </StyledCard>
+            </StyledCard>
+          )}
 
         </StyledScrollView>
       </KeyboardAvoidingView>

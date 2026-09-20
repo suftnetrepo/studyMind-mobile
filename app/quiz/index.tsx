@@ -127,40 +127,26 @@ export default function QuizScreen() {
               <Text variant="label" color={C.textPrimary} fontWeight="700" marginBottom={10}>
                 Question type
               </Text>
-              <Stack gap={10} marginBottom={32}>
-                {Q_TYPES.map(({ key, label, icon, desc }) => (
-                  <StyledPressable
-                    key={key}
-                    backgroundColor={qType === key ? C.quizBg : C.bgCard}
-                    borderRadius={16} padding={16}
-                    borderWidth={1.5} borderColor={qType === key ? C.quizColor : C.border}
-                    horizontal alignItems="center" gap={14}
-                    onPress={() => setQType(key)}
-                  >
-                    <Stack
-                      width={46} height={46} borderRadius={13}
-                      backgroundColor={qType === key ? `${C.quizColor}20` : C.bgMuted}
-                      alignItems="center" justifyContent="center"
-                    >
-                      <Feather name={icon} size={18} color={qType === key ? C.quizColor : C.textSecondary} />
-                    </Stack>
-                    <Stack flex={1} gap={2}>
-                      <Text variant="label"
-                        color={qType === key ? C.quizColor : C.textPrimary}
-                        fontWeight={qType === key ? '700' : '500'}
-                      >{label}</Text>
-                      <Text variant="caption" color={C.textSecondary}>{desc}</Text>
-                    </Stack>
-                    {qType === key && (
+              <Stack horizontal gap={8} marginBottom={24}>
+                {Q_TYPES.map(({ key, label, icon }) => {
+                  const active = qType === key
+                  return (
+                    <StyledPressable key={key} onPress={() => setQType(key)}>
                       <Stack
-                        width={24} height={24} borderRadius={12}
-                        backgroundColor={C.quizColor} alignItems="center" justifyContent="center"
+                        horizontal alignItems="center" gap={7}
+                        backgroundColor={active ? C.quizBg : C.bgCard}
+                        borderRadius={50} paddingHorizontal={16} paddingVertical={10}
+                        style={{ borderWidth: 1.5, borderColor: active ? C.quizColor : C.border }}
                       >
-                        <Feather name="check" size={13} color={C.white} />
+                        <Feather name={icon} size={14} color={active ? C.quizColor : C.textSecondary} />
+                        <Text variant="label"
+                          color={active ? C.quizColor : C.textSecondary}
+                          fontWeight={active ? '700' : '500'}
+                        >{label}</Text>
                       </Stack>
-                    )}
-                  </StyledPressable>
-                ))}
+                    </StyledPressable>
+                  )
+                })}
               </Stack>
 
               {/* Topic */}

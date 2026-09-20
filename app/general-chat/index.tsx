@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { Platform, FlatList, KeyboardAvoidingView, TextInput } from 'react-native'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { Audio } from 'expo-av'
@@ -12,14 +12,11 @@ import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { RichText } from '../../src/components/RichText'
 import { useColors, useIsDark } from '../../src/constants'
-import { useModuleStore } from '../../src/stores'
-import { useChat, type ChatMessage, type ScopeMode, type ComplexityLevel } from '../../src/hooks'
+import { useGeneralChat, type ChatMessage, type ComplexityLevel } from '../../src/hooks'
 import { chatService } from '../../src/services/api'
-import { useNotes } from '../../src/hooks/useNotes'
 import { copyToClipboard, shareText, formatConversationForExport } from '../../src/utils/share'
 
 const MAX_MESSAGE_CHARS = 8000
-const LONG_SCAN_CHARS   = 1500
 
 const COMPLEXITY_LEVELS: { key: ComplexityLevel; label: string; dot: 'success' | 'warning' | 'error' }[] = [
   { key: 'simple', label: 'Simple', dot: 'success' },   // "Explain like I'm 5"
@@ -27,23 +24,25 @@ const COMPLEXITY_LEVELS: { key: ComplexityLevel; label: string; dot: 'success' |
   { key: 'expert', label: 'Expert', dot: 'error'   },
 ]
 
-export default function ChatScreen() {
+const GENERAL_PROMPTS: { icon: keyof typeof Feather.glyphMap; text: string }[] = [
+  { icon: 'repeat',       text: 'Explain how recursion works with an example' },
+  { icon: 'edit-3',       text: 'Help me improve this paragraph...' },
+  { icon: 'globe',        text: 'What is the difference between AI and machine learning?' },
+  { icon: 'hash',         text: 'Solve this maths problem step by step...' },
+  { icon: 'zap',          text: 'Give me study tips for memorising complex topics' },
+  { icon: 'thermometer',  text: 'Explain a scientific concept simply' },
+]
+
+export default function GeneralChatScreen() {
   const C       = useColors()
   const isDark  = useIsDark()
   const listRef = useRef<FlatList>(null)
   const inputRef = useRef<TextInput>(null)
-  const { activeModuleId, activeModuleTitle, activeCourseCode } = useModuleStore()
-  const { sessionId: initialSessionId, scope: initialScope } =
-    useLocalSearchParams<{ sessionId?: string; scope?: ScopeMode }>()
-
-  const {
-    messages, sending, setScopeMode, complexity, setComplexity, send, loadSession,
-  } = useChat(activeModuleId)
+  const { messages, sending, complexity, setComplexity, send } = useGeneralChat()
 
   const actionSheet = useActionSheet()
   const toast        = useToast()
   const loader       = useLoader()
-  const { createNote, updateNote } = useNotes(activeModuleId || null)
 
   const [input, setInput] = React.useState('')
   const [busy,  setBusy]  = useState(false)          // scanning / transcribing
@@ -61,32 +60,6 @@ export default function ChatScreen() {
     setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
 
   // ── Scan & Solve: photo → text ──────────────────────────────────────────────
-  const offerLongScan = (text: string) => {
-    actionSheet.show({
-      title: `Long page scanned (${text.length.toLocaleString()} characters)`,
-      items: [
-        {
-          icon: '📝',
-          label: 'Save as note (recommended)',
-          onPress: () => {
-            const note = createNote(activeCourseCode || undefined, 'Scanned note')
-            updateNote(note.id, text)
-            toast.success('Saved as note', 'Sync it to AI from Notes to search it with your course.')
-            router.push(`/notes/${note.id}` as any)
-          },
-        },
-        {
-          icon: '💬',
-          label: 'Put in chat (first part only)',
-          onPress: () => {
-            appendToInput(text.slice(0, MAX_MESSAGE_CHARS))
-            toast.info('Trimmed to fit', 'Only the first part fits in one message.')
-          },
-        },
-      ],
-    })
-  }
-
   const processImage = async (asset: ImagePicker.ImagePickerAsset) => {
     if (!asset.base64) return
     const loadId = loader.show({ label: 'Reading image…', variant: 'dots' })
@@ -97,8 +70,9 @@ export default function ChatScreen() {
         toast.warning('No text found', 'Try again with the text in clear view.')
         return
       }
-      if (extracted.text.length > LONG_SCAN_CHARS) {
-        offerLongScan(extracted.text)
+      if (extracted.text.length > MAX_MESSAGE_CHARS) {
+        appendToInput(extracted.text.slice(0, MAX_MESSAGE_CHARS))
+        toast.info('Trimmed to fit', 'Only the first part fits in one message.')
       } else {
         appendToInput(extracted.text)
         toast.success('Text extracted!', 'Review and edit before sending.')
@@ -203,14 +177,6 @@ export default function ChatScreen() {
   }
 
   useEffect(() => {
-    if (initialSessionId) loadSession(initialSessionId)
-  }, [initialSessionId, loadSession])
-
-  useEffect(() => {
-    if (initialScope) setScopeMode(initialScope)
-  }, [initialScope, setScopeMode])
-
-  useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100)
     }
@@ -220,7 +186,7 @@ export default function ChatScreen() {
     const text = input.trim()
     if (!text || sending) return
     if (text.length > MAX_MESSAGE_CHARS) {
-      toast.warning('Message too long', `Shorten it by ${(text.length - MAX_MESSAGE_CHARS).toLocaleString()} characters, or save it as a note.`)
+      toast.warning('Message too long', `Shorten it by ${(text.length - MAX_MESSAGE_CHARS).toLocaleString()} characters.`)
       return
     }
     setInput('')
@@ -285,7 +251,7 @@ export default function ChatScreen() {
           alignItems="center" justifyContent="center"
           marginBottom={5}
         >
-          <Feather name="book-open" size={14} color={C.primary} />
+          <Feather name="cpu" size={14} color={C.primary} />
         </Stack>
 
         <StyledPressable
@@ -314,34 +280,6 @@ export default function ChatScreen() {
         >
           <RichText content={cleanAnswer} fontSize={14} />
 
-          {/* Source citations */}
-          {item.sources && item.sources.length > 0 && (
-            <Stack marginTop={10} gap={5}>
-              {item.sources.slice(0, 2).map((s: any, i: number) => (
-                <Stack
-                  key={i} horizontal alignItems="center" gap={7}
-                  backgroundColor={C.primaryBg}
-                  borderRadius={10} paddingHorizontal={10} paddingVertical={6}
-                >
-                  <Feather name="file-text" size={11} color={C.primary} />
-                  <Text
-                    variant="caption" color={C.primary} fontWeight="600"
-                    numberOfLines={1} style={{ flex: 1 }}
-                  >
-                    {s.filename} · chunk {s.chunk_index}
-                  </Text>
-                  <Stack
-                    backgroundColor={`${C.primary}20`} borderRadius={6}
-                    paddingHorizontal={6} paddingVertical={2}
-                  >
-                    <Text variant="caption" color={C.primary} fontWeight="700">
-                      {(s.relevance_score * 100).toFixed(0)}%
-                    </Text>
-                  </Stack>
-                </Stack>
-              ))}
-            </Stack>
-          )}
         </StyledPressable>
       </Stack>
     )
@@ -353,15 +291,15 @@ export default function ChatScreen() {
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >
       <ScreenHeader
-        title={activeCourseCode || 'AI Tutor'}
-        subtitle={activeModuleTitle || undefined}
+        title="AI Assistant"
+        subtitle="Ask me anything"
         onBackPress={() => router.back()}
         rightIcon={
           <StyledPressable
             onPress={() => {
               const text = formatConversationForExport(
                 messages,
-                activeCourseCode || 'AI Tutor',
+                'AI Assistant',
               )
               shareText(text, 'studymind-conversation.txt', toast)
             }}
@@ -373,15 +311,6 @@ export default function ChatScreen() {
           </StyledPressable>
         }
       />
-
-      <StyledPressable
-        onPress={() => router.push('/general-chat' as any)}
-        style={{ alignSelf: 'flex-end', marginRight: 20, marginBottom: 4 }}
-      >
-        <Text variant="caption" color={C.primary} fontWeight="600">
-          Switch to General Chat →
-        </Text>
-      </StyledPressable>
 
       {/* Complexity level */}
       <Stack horizontal paddingHorizontal={20} paddingTop={4} paddingBottom={8} gap={8}>
@@ -420,20 +349,43 @@ export default function ChatScreen() {
         }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <Stack flex={1} alignItems="center" justifyContent="center" padding={32} gap={16}>
+          <Stack flex={1} alignItems="center" justifyContent="center" paddingHorizontal={20} gap={18}>
             <Stack
               width={72} height={72} borderRadius={22}
               backgroundColor={C.primaryBg} alignItems="center" justifyContent="center"
             >
-              <Feather name="message-circle" size={30} color={C.primary} />
+              <Feather name="cpu" size={30} color={C.primary} />
             </Stack>
             <Stack alignItems="center" gap={6}>
               <Text variant="title" color={C.textPrimary} fontWeight="800" textAlign="center">
                 Ask anything
               </Text>
               <Text variant="body" color={C.textSecondary} textAlign="center" style={{ lineHeight: 22 }}>
-                I'll answer from your uploaded course materials with source citations.
+                Not limited to your course materials. Try one of these:
               </Text>
+            </Stack>
+            <Stack horizontal style={{ flexWrap: 'wrap', gap: 10 }}>
+              {GENERAL_PROMPTS.map((p) => (
+                <StyledPressable
+                  key={p.text} style={{ width: '48%' }}
+                  onPress={() => { setInput(p.text); inputRef.current?.focus() }}
+                >
+                  <Stack
+                    backgroundColor={C.bgCard} borderRadius={16} padding={12} gap={8}
+                    style={{ borderWidth: 1, borderColor: C.border, minHeight: 92 }}
+                  >
+                    <Stack
+                      width={30} height={30} borderRadius={9}
+                      backgroundColor={C.primaryBg} alignItems="center" justifyContent="center"
+                    >
+                      <Feather name={p.icon} size={15} color={C.primary} />
+                    </Stack>
+                    <Text variant="caption" color={C.textPrimary} fontWeight="600" numberOfLines={3}>
+                      {p.text}
+                    </Text>
+                  </Stack>
+                </StyledPressable>
+              ))}
             </Stack>
           </Stack>
         }
@@ -489,7 +441,7 @@ export default function ChatScreen() {
               ref={inputRef}
               value={input}
               onChangeText={setInput}
-              placeholder={isRecording ? 'Listening… tap ■ to finish' : `Ask about ${activeCourseCode || 'your materials'}…`}
+              placeholder={isRecording ? 'Listening… tap ■ to finish' : 'Ask anything…'}
               placeholderTextColor={C.textMuted}
               multiline
               style={{

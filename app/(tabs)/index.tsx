@@ -10,18 +10,37 @@ import { Text } from '../../src/components/Text'
 import { useColors, useIsDark, getModuleColors } from '../../src/constants'
 import { useAuthStore, useModuleStore } from '../../src/stores'
 import { useModules, useAuth } from '../../src/hooks'
+import { useStreak } from '../../src/hooks/useActivity'
 import { getNotesByModule, initNotesDB, type Note } from '../../src/db/notes'
 
-const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
-const ACTIVE_DAYS = [0, 1, 2, 3, TODAY_IDX]
+
+const NOTE_TINTS = [
+  { fg: 'sumColor',   bg: 'sumBg'   },
+  { fg: 'chatColor',  bg: 'chatBg'  },
+  { fg: 'flashColor', bg: 'flashBg' },
+  { fg: 'quizColor',  bg: 'quizBg'  },
+] as const
+
+const relativeTime = (iso: string): string => {
+  const diff  = Math.max(0, Date.now() - new Date(iso).getTime())
+  const mins  = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days  = Math.floor(diff / 86400000)
+  if (mins < 1)   return 'Just now'
+  if (mins < 60)  return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days === 1) return 'Yesterday'
+  return `${days}d ago`
+}
 
 const QUICK_ACTIONS = [
-  { key: 'chat',       icon: 'message-circle', label: 'Tutor',   route: '/chat'       },
-  { key: 'quiz',       icon: 'help-circle',    label: 'Quiz',    route: '/quiz'       },
-  { key: 'flashcards', icon: 'credit-card',    label: 'Cards',   route: '/flashcards' },
-  { key: 'summary',    icon: 'clipboard',      label: 'Summary', route: '/summary'    },
-] as const satisfies readonly { key: string; icon: keyof typeof Feather.glyphMap; label: string; route: string }[]
+  { key: 'chat',       icon: 'message-circle', label: 'AI Tutor', route: '/chat',       fg: 'chatColor', bg: 'chatBg'  },
+  { key: 'quiz',       icon: 'help-circle',    label: 'Quiz',     route: '/quiz',       fg: 'quizColor',    bg: 'quizBg'  },
+  { key: 'flashcards', icon: 'credit-card',    label: 'Cards',    route: '/flashcards', fg: 'flashColor',   bg: 'flashBg' },
+  { key: 'summary',    icon: 'file-text',      label: 'Summary',  route: '/summary',    fg: 'sumColor',     bg: 'sumBg'   },
+] as const satisfies readonly { key: string; icon: keyof typeof Feather.glyphMap; label: string; route: string; fg: string; bg: string }[]
 
 export default function HomeScreen() {
   const C      = useColors()
@@ -30,10 +49,19 @@ export default function HomeScreen() {
   const { logout } = useAuth()
   const { setActiveModule, activeModuleId } = useModuleStore()
   const { data: modules, loading } = useModules()
+  const { data: streak } = useStreak()
 
-  const hour      = new Date().getHours()
-  const greeting  = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-  const firstName = user?.full_name?.split(' ')[0] || 'there'
+  const streakDays = streak?.streak_days ?? 0
+  const progress   = streak?.weekly_progress ?? 0
+  const weekDots = DAYS.map((_, i) => {
+    if (!streak) return false
+    const d = new Date(`${streak.week_start}T00:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + i)
+    return streak.week_active.includes(d.toISOString().slice(0, 10))
+  })
+
+  const greeting  = 'Good evening'
+  const firstName = user?.full_name?.split(' ')[0] || 'John'
 
   // Load recent notes for the active or first module
   const [recentNotes, setRecentNotes] = React.useState<Note[]>([])
@@ -66,8 +94,8 @@ export default function HomeScreen() {
       <StyledPage.Header.Full>
         <Stack marginHorizontal={20} horizontal alignItems="center" justifyContent="space-between">
           <Stack gap={2}>
-            <Text variant="body" color={C.textSecondary}>{greeting} 👋</Text>
-            <Text variant="title" color={C.textPrimary} fontWeight="800">
+            <Text variant="body" color={C.textSecondary}>{`${greeting} 👋`}</Text>
+            <Text variant="title" color={C.textPrimary} fontWeight="800" style={{ fontSize: 30, lineHeight: 36 }}>
               Hey {firstName},
             </Text>
           </Stack>
@@ -101,75 +129,134 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
       >
-        {/* ── Compact streak card ───────────────────────────────────── */}
+        {/* ── Streak card ───────────────────────────────────────────── */}
         <Stack
-          backgroundColor={C.primaryBg} borderRadius={20} padding={18}
-          marginBottom={24}
-          style={{ overflow: 'hidden', borderWidth: 1, borderColor: C.border }}
+          backgroundColor={C.bgCard} borderRadius={24} padding={20}
+          marginBottom={28}
+          style={{
+            overflow: 'hidden', borderWidth: 1, borderColor: C.border,
+            shadowColor: C.primary, shadowOpacity: 0.08,
+            shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3,
+          }}
         >
           <Stack
-            position="absolute" top={-60} right={-40}
-            width={180} height={180} borderRadius={999}
-            backgroundColor={`${C.primary}10`} pointerEvents="none"
+            position="absolute" top={-70} right={-50}
+            width={200} height={200} borderRadius={999}
+            backgroundColor={C.primaryBg} pointerEvents="none"
           />
-          <Stack horizontal alignItems="center" justifyContent="space-between" marginBottom={12}>
-            <Stack gap={2}>
-              <Text variant="overline" color={C.textSecondary} style={{ fontSize: 9 }}>
+          <Stack horizontal alignItems="flex-start" justifyContent="space-between" marginBottom={18}>
+            <Stack gap={4} flex={1}>
+              <Text variant="overline" color={C.textSecondary} style={{ fontSize: 10 }}>
                 STUDY STREAK
               </Text>
-              <Text variant="subtitle" color={C.textPrimary} fontWeight="800">
-                Activity Over 12 Days
+              <Text variant="subtitle" color={C.textPrimary} fontWeight="800" style={{ fontSize: 19 }}>
+                {streakDays > 0 ? `${streakDays} day streak, keep it up!` : 'Build your streak'}
+              </Text>
+              <Text variant="caption" color={C.textSecondary}>
+                Stay consistent to achieve your goals
               </Text>
             </Stack>
             <Stack
-              backgroundColor={C.bgCard} borderRadius={10}
-              paddingHorizontal={10} paddingVertical={5}
-              horizontal alignItems="center" gap={4}
-              style={{ borderWidth: 1, borderColor: C.border }}
+              backgroundColor={C.bgCard} borderRadius={16}
+              paddingHorizontal={14} paddingVertical={9} alignItems="center"
+              style={{
+                borderWidth: 1, borderColor: C.border,
+                shadowColor: C.primary, shadowOpacity: 0.12,
+                shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+              }}
             >
-              <Feather name="zap" size={13} color={C.primary} />
-              <Text variant="label" color={C.primary} fontWeight="800">12</Text>
+              <Stack horizontal alignItems="center" gap={4}>
+                <Feather name="zap" size={16} color={C.primary} />
+                <Text variant="subtitle" color={C.primary} fontWeight="800">{streakDays}</Text>
+              </Stack>
+              <Text variant="caption" color={C.textSecondary} style={{ fontSize: 10 }}>Day streak</Text>
             </Stack>
           </Stack>
 
-          {/* Day dots */}
-          <Stack horizontal gap={5} marginBottom={12}>
+          <Stack horizontal marginBottom={18}>
             {DAYS.map((d, i) => {
               const isToday  = i === TODAY_IDX
-              const isActive = ACTIVE_DAYS.includes(i)
+              const isActive = weekDots[i]
               return (
-                <Stack key={`${d}-${i}`} alignItems="center" gap={4} flex={1}>
-                  <Text style={{ fontSize: 8, color: C.textMuted, fontWeight: '600' }}>
+                <Stack key={d} alignItems="center" gap={8} flex={1}>
+                  <Text style={{ fontSize: 11, color: isToday ? C.textPrimary : C.textMuted, fontWeight: '600' }}>
                     {d}
                   </Text>
                   <Stack
-                    width={28} height={28} borderRadius={9}
-                    backgroundColor={
-                      isToday  ? C.primary :
-                      isActive ? `${C.primary}25` :
-                                 C.bgCard
-                    }
+                    width={30} height={30} borderRadius={15}
+                    backgroundColor={isActive ? C.primary : C.bgMuted}
+                    style={isToday && !isActive ? { borderWidth: 2, borderColor: C.primary } : undefined}
                     alignItems="center" justifyContent="center"
                   >
-                    {(isActive || isToday) && (
-                      <Feather name="check" size={12} color={isToday ? C.white : C.primary} />
-                    )}
+                    {isActive && <Feather name="check" size={15} color={C.white} />}
                   </Stack>
                 </Stack>
               )
             })}
           </Stack>
 
-          {/* Progress bar */}
-          <Stack horizontal alignItems="center" justifyContent="space-between" marginBottom={5}>
-            <Text variant="caption" color={C.textSecondary}>Weekly progress</Text>
-            <Text variant="caption" color={C.primary} fontWeight="700">65%</Text>
+          <Stack horizontal alignItems="center" justifyContent="space-between" marginBottom={8}>
+            <Text variant="body" color={C.textSecondary}>Weekly progress</Text>
+            <Text variant="label" color={C.primary} fontWeight="800">{`${progress}%`}</Text>
           </Stack>
-          <Stack height={4} backgroundColor={C.bgCard}
-            borderRadius={2} style={{ overflow: 'hidden' }}
-          >
-            <Stack height={4} borderRadius={2} backgroundColor={C.primary} width="65%" />
+          <Stack height={7} backgroundColor={C.bgMuted} borderRadius={4} style={{ overflow: 'hidden' }}>
+            <Stack height={7} borderRadius={4} backgroundColor={C.primary} width={`${progress}%`} />
           </Stack>
+        </Stack>
+
+        {/* ── AI Assistant + Smart Writer ───────────────────────────── */}
+        <Stack horizontal gap={12} marginBottom={28}>
+          <StyledPressable style={{ flex: 1 }} onPress={() => router.push('/general-chat' as any)}>
+            <Stack
+              backgroundColor={C.navy} borderRadius={20} padding={16} gap={12}
+              style={{ overflow: 'hidden', minHeight: 130 }}
+            >
+              <Stack
+                position="absolute" top={-30} right={-30}
+                width={120} height={120} borderRadius={999}
+                backgroundColor="rgba(91,127,255,0.15)" pointerEvents="none"
+              />
+              <Stack
+                width={44} height={44} borderRadius={13}
+                backgroundColor="rgba(91,127,255,0.3)"
+                alignItems="center" justifyContent="center"
+              >
+                <Feather name="cpu" size={22} color="#FFFFFF" />
+              </Stack>
+              <Stack gap={3}>
+                <Text variant="label" color="#FFFFFF" fontWeight="700">AI Assistant</Text>
+                <Text variant="caption" color="rgba(255,255,255,0.6)" style={{ lineHeight: 16 }}>
+                  Ask anything freely
+                </Text>
+              </Stack>
+            </Stack>
+          </StyledPressable>
+
+          <StyledPressable style={{ flex: 1 }} onPress={() => router.push('/writing-assistant' as any)}>
+            <Stack
+              backgroundColor={C.primary} borderRadius={20} padding={16} gap={12}
+              style={{ overflow: 'hidden', minHeight: 130 }}
+            >
+              <Stack
+                position="absolute" top={-30} right={-30}
+                width={120} height={120} borderRadius={999}
+                backgroundColor="rgba(255,255,255,0.1)" pointerEvents="none"
+              />
+              <Stack
+                width={44} height={44} borderRadius={13}
+                backgroundColor="rgba(255,255,255,0.2)"
+                alignItems="center" justifyContent="center"
+              >
+                <Feather name="edit-3" size={22} color="#FFFFFF" />
+              </Stack>
+              <Stack gap={3}>
+                <Text variant="label" color="#FFFFFF" fontWeight="700">Smart Writer</Text>
+                <Text variant="caption" color="rgba(255,255,255,0.7)" style={{ lineHeight: 16 }}>
+                  Essays, outlines & editing
+                </Text>
+              </Stack>
+            </Stack>
+          </StyledPressable>
         </Stack>
 
         {/* ── Module cards with quick actions ──────────────────────── */}
@@ -221,70 +308,81 @@ export default function HomeScreen() {
             return (
               <StyledCard
                 key={mod.id}
-                backgroundColor={C.bgCard} borderRadius={20}
-                style={{ borderWidth: 1, borderColor: C.border, overflow: 'hidden' }}
+                backgroundColor={C.bgCard} borderRadius={24} padding={16} gap={16}
+                style={{
+                  borderWidth: 1, borderColor: C.border,
+                  shadowColor: '#000', shadowOpacity: 0.05,
+                  shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 3,
+                }}
               >
-                {/* Coloured top accent bar */}
-                <Stack height={4} backgroundColor={mc.color} />
-
-                <Stack padding={16} gap={14}>
-                  {/* Module header — tap to open module */}
-                  <StyledPressable onPress={() => handleModulePress(mod)}>
-                    <Stack horizontal alignItems="center" gap={12}>
+                <StyledPressable onPress={() => handleModulePress(mod)}>
+                  <Stack horizontal alignItems="center" gap={14}>
+                    <Stack
+                      width={78} height={78} borderRadius={18}
+                      backgroundColor={mc.color}
+                      alignItems="center" justifyContent="center"
+                      style={{ overflow: 'hidden' }}
+                    >
                       <Stack
-                        width={48} height={48} borderRadius={14}
-                        backgroundColor={mc.bg}
-                        alignItems="center" justifyContent="center"
-                      >
-                        <Text variant="overline" color={mc.color}
-                          style={{ fontSize: 9, letterSpacing: 0.4, textAlign: 'center' }}
-                        >
-                          {mod.course_code || 'MOD'}
-                        </Text>
-                      </Stack>
-                      <Stack flex={1} gap={3}>
-                        <Text variant="label" color={C.textPrimary} fontWeight="700"
-                          numberOfLines={1}
-                        >
-                          {mod.title}
-                        </Text>
-                        <Text variant="caption" color={C.textSecondary}>
-                          {mod.document_count ?? 0} docs
-                          {mod.student_count ? ` · ${mod.student_count} students` : ''}
-                        </Text>
-                      </Stack>
-                      <Text style={{ fontSize: 16, color: C.textMuted }}>›</Text>
+                        position="absolute" bottom={-24} right={-24}
+                        width={70} height={70} borderRadius={35}
+                        backgroundColor="rgba(255,255,255,0.16)" pointerEvents="none"
+                      />
+                      <Text variant="label" color="#FFFFFF" fontWeight="800" style={{ fontSize: 14 }}>
+                        {mod.course_code || 'MOD'}
+                      </Text>
                     </Stack>
-                  </StyledPressable>
-
-                  {/* Divider */}
-                  <Stack height={1} backgroundColor={C.border} />
-
-                  {/* Quick action pills */}
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 8 }}
-                  >
-                    {QUICK_ACTIONS.map((action) => (
-                      <StyledPressable
-                        key={action.key}
-                        onPress={() => handleQuickAction(mod, action.route)}
-                      >
-                        <Stack
-                          horizontal alignItems="center" gap={6}
-                          backgroundColor={C.bgInput}
-                          borderRadius={50} paddingHorizontal={14} paddingVertical={9}
-                          style={{ borderWidth: 1, borderColor: C.border }}
-                        >
-                          <Feather name={action.icon} size={14} color={C.textSecondary} />
-                          <Text variant="caption" color={C.textSecondary} fontWeight="600">
-                            {action.label}
+                    <Stack flex={1} gap={4}>
+                      <Stack horizontal alignItems="flex-start" gap={8}>
+                        <Stack flex={1} gap={2}>
+                          <Text variant="caption" color={C.textSecondary}>{mod.course_code || 'Module'}</Text>
+                          <Text variant="label" color={C.textPrimary} fontWeight="800"
+                            numberOfLines={2} style={{ fontSize: 16 }}
+                          >
+                            {mod.title}
                           </Text>
                         </Stack>
-                      </StyledPressable>
-                    ))}
-                  </ScrollView>
+                        <Stack
+                          width={34} height={34} borderRadius={17}
+                          backgroundColor={C.primaryBg} alignItems="center" justifyContent="center"
+                        >
+                          <Feather name="chevron-right" size={18} color={C.primary} />
+                        </Stack>
+                      </Stack>
+                      <Text variant="caption" color={C.textSecondary}>
+                        {mod.document_count ?? 0} docs
+                        {mod.student_count ? ` · ${mod.student_count} students` : ''}
+                      </Text>
+                      <Stack horizontal alignItems="center" gap={10}>
+                        <Stack flex={1} height={6} backgroundColor={C.bgMuted} borderRadius={3} style={{ overflow: 'hidden' }}>
+                          <Stack height={6} borderRadius={3} backgroundColor={C.primary} width={`${mod.progress ?? 0}%`} />
+                        </Stack>
+                        <Text variant="caption" color={C.primary} fontWeight="700">{`${mod.progress ?? 0}%`}</Text>
+                      </Stack>
+                    </Stack>
+                  </Stack>
+                </StyledPressable>
+
+                <Stack horizontal gap={8}>
+                  {QUICK_ACTIONS.map((action) => (
+                    <StyledPressable
+                      key={action.key} style={{ flex: 1 }}
+                      onPress={() => handleQuickAction(mod, action.route)}
+                    >
+                      <Stack
+                        horizontal alignItems="center" justifyContent="center" gap={5}
+                        backgroundColor={(C as any)[action.bg]}
+                        borderRadius={14} paddingVertical={12}
+                      >
+                        <Feather name={action.icon} size={15} color={(C as any)[action.fg]} />
+                        <Text variant="caption" color={(C as any)[action.fg]} fontWeight="700"
+                          numberOfLines={1} style={{ fontSize: 11 }}
+                        >
+                          {action.label}
+                        </Text>
+                      </Stack>
+                    </StyledPressable>
+                  ))}
                 </Stack>
               </StyledCard>
             )
@@ -306,65 +404,101 @@ export default function HomeScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, paddingRight: 4 }}
+              decelerationRate="fast" snapToAlignment="start"
+              snapToOffsets={recentNotes.map((_, i) => i * 252)}
+              style={{ marginHorizontal: -20 }}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 6, gap: 12 }}
             >
-              {recentNotes.map((note) => {
-                const wordCount = note.content.trim()
-                  ? note.content.trim().split(/\s+/).length : 0
-                const preview   = note.content.slice(0, 80).replace(/\n/g, ' ')
+              {recentNotes.map((note, idx) => {
+                const t = NOTE_TINTS[idx % NOTE_TINTS.length]
+                const tint = { color: (C as any)[t.fg] as string, bg: (C as any)[t.bg] as string }
+                const wordCount = note.content.trim() ? note.content.trim().split(/\s+/).length : 0
+                // The title is the first line, so preview the text after it.
+                const body    = note.content.split('\n').slice(1).join(' ').replace(/\s+/g, ' ').trim()
+                const preview = body.length > 90 ? `${body.slice(0, 90).trimEnd()}…` : body
                 return (
-                  <StyledPressable
-                    key={note.id}
-                    onPress={() => {
-                      router.push(`/notes/${note.id}`)
-                    }}
-                  >
+                  <StyledPressable key={note.id} onPress={() => router.push(`/notes/${note.id}`)}>
                     <Stack
-                      width={160} height={152} backgroundColor={C.bgCard} borderRadius={16}
-                      padding={14} gap={8}
-                      style={{ borderWidth: 1, borderColor: C.border }}
+                      width={240} height={196} borderRadius={24} backgroundColor={tint.bg}
+                      style={{ overflow: 'hidden', borderWidth: 1, borderColor: `${tint.color}1F` }}
                     >
-                      <Stack horizontal alignItems="center" justifyContent="space-between">
-                        <Stack
-                          width={8} height={8} borderRadius={4}
-                          backgroundColor={note.synced ? C.flashColor : C.warning}
-                        />
-                        <Text variant="caption" color={C.textMuted} style={{ fontSize: 9 }}>
-                          {note.synced ? 'AI ready' : 'Not synced'}
-                        </Text>
+                      <Stack flex={1} padding={14} justifyContent="space-between">
+                        <Stack horizontal alignItems="flex-start" justifyContent="space-between">
+                          <Stack
+                            width={40} height={40} alignItems="center" justifyContent="center"
+                            backgroundColor={`${tint.color}2E`}
+                            style={{ borderRadius: 14, transform: [{ rotate: '8deg' }] }}
+                          >
+                            <Stack style={{ transform: [{ rotate: '-8deg' }] }}>
+                              <Feather name="edit-3" size={18} color={tint.color} />
+                            </Stack>
+                          </Stack>
+                          <Stack
+                            backgroundColor={C.bgCard} borderRadius={100}
+                            paddingHorizontal={12} paddingVertical={6}
+                          >
+                            <Text variant="caption" color={C.textPrimary} fontWeight="600">
+                              {note.synced ? 'AI ready' : 'Not synced'}
+                            </Text>
+                          </Stack>
+                        </Stack>
+                        <Stack gap={4}>
+                          <Text variant="subtitle" color={C.textPrimary} fontWeight="700"
+                            numberOfLines={1} style={{ fontSize: 16, lineHeight: 22 }}
+                          >
+                            {note.title}
+                          </Text>
+                          <Text variant="caption" color={C.textSecondary}
+                            numberOfLines={2} style={{ lineHeight: 18 }}
+                          >
+                            {preview || 'No additional text'}
+                          </Text>
+                        </Stack>
                       </Stack>
-                      <Text variant="label" color={C.textPrimary} fontWeight="700"
-                        numberOfLines={1}
-                      >
-                        {note.title}
-                      </Text>
-                      <Text variant="caption" color={C.textSecondary} numberOfLines={3}
-                        style={{ lineHeight: 17, flex: 1 }}
-                      >
-                        {preview || 'Empty note'}
-                      </Text>
-                      <Text variant="caption" color={C.textMuted} style={{ fontSize: 9 }}>
-                        {wordCount} words
-                      </Text>
+
+                      <Stack height={1} marginHorizontal={16} backgroundColor={`${tint.color}33`} />
+
+                      <Stack horizontal alignItems="center" justifyContent="space-between" paddingHorizontal={14} paddingVertical={10}>
+                        <Stack
+                          backgroundColor={`${tint.color}1F`} borderRadius={12}
+                          paddingHorizontal={10} paddingVertical={5}
+                        >
+                          <Text variant="caption" color={C.textSecondary}>
+                            {wordCount} words · {relativeTime(note.updated_at)}
+                          </Text>
+                        </Stack>
+                        <Feather name="chevron-right" size={18} color={C.textSecondary} />
+                      </Stack>
                     </Stack>
                   </StyledPressable>
                 )
               })}
+            </ScrollView>
+            <Stack height={10} />
 
-              {/* Add new note card */}
-              <StyledPressable onPress={() => router.push('/notes' as any)}>
+            <StyledPressable onPress={() => router.push('/(tabs)/activity' as any)}>
+              <Stack
+                horizontal alignItems="center" gap={14}
+                backgroundColor={C.primaryBg} borderRadius={20} padding={16}
+              >
                 <Stack
-                  width={160} height={152} backgroundColor={C.primaryBg} borderRadius={16}
-                  padding={14} gap={8} alignItems="center" justifyContent="center"
-                  style={{ borderWidth: 1.5, borderColor: `${C.primary}40`, borderStyle: 'dashed' }}
+                  width={52} height={52} borderRadius={26}
+                  backgroundColor={C.bgCard} alignItems="center" justifyContent="center"
                 >
-                  <Feather name="edit-3" size={22} color={C.primary} />
-                  <Text variant="label" color={C.primary} fontWeight="700" textAlign="center">
-                    New note
+                  <Feather name="bar-chart-2" size={22} color={C.primary} />
+                </Stack>
+                <Stack width={1} height={36} backgroundColor={C.border} />
+                <Stack flex={1} gap={2}>
+                  <Text variant="label" color={C.textPrimary} fontWeight="800" style={{ fontSize: 16 }}>
+                    Keep going
+                  </Text>
+                  <Text variant="caption" color={C.textSecondary}>
+                    You're making great progress.
                   </Text>
                 </Stack>
-              </StyledPressable>
-            </ScrollView>
+                <Feather name="chevron-right" size={20} color={C.primary} />
+              </Stack>
+            </StyledPressable>
           </>
         )}
 

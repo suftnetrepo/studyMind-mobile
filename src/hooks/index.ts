@@ -219,6 +219,7 @@ export function useModuleDetail(moduleId: string | null) {
 
 // ─── useChat ──────────────────────────────────────────────────────────────────
 export type ScopeMode = 'everything' | 'class_only' | 'personal_only'
+export type ComplexityLevel = 'simple' | 'normal' | 'expert'
 
 export interface ChatMessage {
   id:       string
@@ -234,6 +235,7 @@ export function useChat(moduleId?: string | null) {
   const [sending,   setSending]   = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [scopeMode, setScopeMode] = useState<ScopeMode>('everything')
+  const [complexity, setComplexity] = useState<ComplexityLevel>('normal')
   const [sessions,  setSessions]  = useState<any[]>([])
   const toast = useToast()
 
@@ -256,7 +258,7 @@ export function useChat(moduleId?: string | null) {
 
     try {
       const res = await chatService.send(
-        text, moduleId || undefined, sessionId || undefined, scopeMode,
+        text, moduleId || undefined, sessionId || undefined, scopeMode, complexity,
       )
       if (!sessionId) setSessionId(res.session_id)
       const botMsg: ChatMessage = {
@@ -291,7 +293,40 @@ export function useChat(moduleId?: string | null) {
     } catch {}
   }, [])
 
-  return { messages, sending, scopeMode, setScopeMode, sessions, send, clearMessages, loadSession }
+  return {
+    messages, sending, scopeMode, setScopeMode, complexity, setComplexity,
+    sessions, send, clearMessages, loadSession,
+  }
+}
+
+// ─── useGeneralChat ───────────────────────────────────────────────────────────
+export function useGeneralChat() {
+  const [messages,  setMessages]  = useState<ChatMessage[]>([])
+  const [sending,   setSending]   = useState(false)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [complexity, setComplexity] = useState<ComplexityLevel>('normal')
+  const toast = useToast()
+
+  const send = async (text: string) => {
+    if (!text.trim() || sending) return
+    setSending(true)
+    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: text }
+    const loadingMsg: ChatMessage = { id: 'loading', role: 'assistant', content: '', loading: true }
+    setMessages((prev) => [...prev, userMsg, loadingMsg])
+    try {
+      const res = await chatService.sendGeneral(text, sessionId || undefined, complexity)
+      if (!sessionId) setSessionId(res.session_id)
+      const botMsg: ChatMessage = { id: res.message_id, role: 'assistant', content: res.answer }
+      setMessages((prev) => [...prev.filter((m) => m.id !== 'loading'), botMsg])
+    } catch (e: any) {
+      setMessages((prev) => prev.filter((m) => m.id !== 'loading'))
+      toast.error('Message failed', e.message || 'Could not reach the AI. Try again.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return { messages, sending, complexity, setComplexity, send }
 }
 
 // ─── useQuiz ──────────────────────────────────────────────────────────────────

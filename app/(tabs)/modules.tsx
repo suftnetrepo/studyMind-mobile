@@ -139,7 +139,8 @@ export default function ModulesScreen() {
   const actionSheet = useActionSheet()
   const toast        = useToast()
 
-  const canCreate = user?.role === 'lecturer' || user?.role === 'admin'
+  const isStudent = user?.role === 'student'
+  const canCreate = user?.role === 'lecturer' || user?.role === 'admin' || user?.role === 'self_learner'
   const canJoin   = user?.role === 'student'  || user?.role === 'self_learner'
 
   const filtered = modules.filter((m) => {
@@ -224,13 +225,24 @@ export default function ModulesScreen() {
             <Text variant="overline" color={C.textSecondary}>Your learning</Text>
             <Text variant="title" color={C.textPrimary} fontWeight="800">Modules</Text>
           </Stack>
-          <StyledButton
-            backgroundColor={C.primary} borderRadius={12}
-            paddingHorizontal={16} paddingVertical={9}
-            onPress={openAddMenu}
-          >
-            <Text variant="label" color={C.white} fontWeight="700">+ New</Text>
-          </StyledButton>
+          {isStudent ? (
+            <StyledButton
+              backgroundColor={C.primaryBg} borderRadius={12}
+              paddingHorizontal={16} paddingVertical={9}
+              borderWidth={1} borderColor={C.primary}
+              onPress={openJoinSheet}
+            >
+              <Text variant="label" color={C.primary} fontWeight="700">+ Join</Text>
+            </StyledButton>
+          ) : (
+            <StyledButton
+              backgroundColor={C.primary} borderRadius={12}
+              paddingHorizontal={16} paddingVertical={9}
+              onPress={openAddMenu}
+            >
+              <Text variant="label" color={C.white} fontWeight="700">+ New</Text>
+            </StyledButton>
+          )}
         </Stack>
       </StyledPage.Header.Full>
 
@@ -321,7 +333,7 @@ export default function ModulesScreen() {
                       <Stack height={3} backgroundColor={C.bgMuted} borderRadius={2}
                         style={{ overflow: 'hidden' }}
                       >
-                        <Stack height={3} borderRadius={2} backgroundColor={mc.color} width="40%" />
+                        <Stack height={3} borderRadius={2} backgroundColor={mc.color} width={`${mod.progress ?? 0}%` as any} />
                       </Stack>
                     </Stack>
                     <Text style={{ fontSize: 18, color: C.textMuted }}>›</Text>

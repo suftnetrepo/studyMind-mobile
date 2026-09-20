@@ -3,22 +3,25 @@ import { Platform } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as DocumentPicker from 'expo-document-picker'
+import * as ImagePicker from 'expo-image-picker'
 import {
   StyledPage, StyledScrollView, Stack,
-  StyledCard, StyledPressable, StyledButton, TabBar, type TabItem, useToast,
+  StyledCard, StyledPressable, StyledButton, TabBar, type TabItem, useToast, useLoader, useActionSheet,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
-import { useColors, useIsDark, getModuleColors, TOOLS } from '../../src/constants'
+import { useColors, useIsDark, TOOLS } from '../../src/constants'
 import { useModuleStore, useAuthStore } from '../../src/stores'
 import { useModuleDetail } from '../../src/hooks'
+import { chatService } from '../../src/services/api'
 import { useNotes } from '../../src/hooks/useNotes'
+import { ToolArt, LaptopArt, type ToolArtKind } from '../../src/components/ToolArt'
 
 type TabKey = 'overview' | 'documents' | 'chat'
 const TABS: TabItem<TabKey>[] = [
-  { value: 'overview',  label: 'Overview'  },
-  { value: 'documents', label: 'Documents' },
-  { value: 'chat',      label: 'Chat'      },
+  { value: 'overview',  label: 'Overview',  iconRender: (color) => <Feather name="grid" size={16} color={color as string} /> },
+  { value: 'documents', label: 'Documents', iconRender: (color) => <Feather name="file-text" size={16} color={color as string} /> },
+  { value: 'chat',      label: 'Chat',      iconRender: (color) => <Feather name="message-circle" size={16} color={color as string} /> },
 ]
 
 const FILE_ICON: Record<string, keyof typeof Feather.glyphMap> = {
@@ -26,10 +29,10 @@ const FILE_ICON: Record<string, keyof typeof Feather.glyphMap> = {
 }
 
 const TOOL_META = {
-  chat:       { icon: 'message-circle', label: 'AI Tutor',   desc: 'Ask questions',    color: 'chatColor',  bg: 'chatBg'  },
-  quiz:       { icon: 'help-circle',    label: 'AI Quiz',    desc: 'Test yourself',    color: 'quizColor',  bg: 'quizBg'  },
-  flashcards: { icon: 'credit-card',    label: 'Flashcards', desc: 'Memorise terms',   color: 'flashColor', bg: 'flashBg' },
-  summary:    { icon: 'clipboard',      label: 'AI Summary', desc: 'Get an overview',  color: 'sumColor',   bg: 'sumBg'   },
+  chat:       { icon: 'message-circle', label: 'AI Tutor',   desc: 'Ask questions and get instant help', color: 'chatColor',  bg: 'chatBg'  },
+  quiz:       { icon: 'help-circle',    label: 'AI Quiz',    desc: 'Test yourself and track your progress', color: 'quizColor',  bg: 'quizBg'  },
+  flashcards: { icon: 'credit-card',    label: 'Flashcards', desc: 'Memorise key terms with spaced repetition', color: 'flashColor', bg: 'flashBg' },
+  summary:    { icon: 'clipboard',      label: 'AI Summary', desc: 'Get a clear overview of any topic', color: 'sumColor',   bg: 'sumBg'   },
 } as const satisfies Record<string, { icon: keyof typeof Feather.glyphMap; label: string; desc: string; color: string; bg: string }>
 
 export default function ModuleDetailScreen() {
@@ -44,10 +47,11 @@ export default function ModuleDetailScreen() {
   const {
     module, documents, sessions, loading, uploadDocument, deleteDocument,
   } = useModuleDetail(id || null)
-  const { notes } = useNotes(id || null)
+  const { notes, createNote, updateNote } = useNotes(id || null)
   const toast = useToast()
+  const loader = useLoader()
+  const actionSheet = useActionSheet()
 
-  const mc       = getModuleColors(C, 0)
   const classDocs = documents.filter((d) => d.visibility === 'class')
   const myNotes   = documents.filter((d) => d.visibility === 'personal')
 
@@ -72,8 +76,60 @@ export default function ModuleDetailScreen() {
     }
   }
 
+  const processScan = async (asset: ImagePicker.ImagePickerAsset) => {
+    if (!asset.base64) return
+    const loadId = loader.show({ label: 'Reading page…', variant: 'dots' })
+    try {
+      const { text } = await chatService.extractFromImage(asset.base64, asset.mimeType || 'image/jpeg')
+      if (!text?.trim()) {
+        toast.warning('No text found', 'Try again with the page in clear view.')
+        return
+      }
+      const note = createNote(activeCourseCode || module?.course_code, 'Scanned note')
+      updateNote(note.id, text)
+      toast.success('Scanned!', 'Saved as a note. Review it before syncing to AI.')
+      router.push(`/notes/${note.id}` as any)
+    } catch (e: any) {
+      toast.error('Could not read image', e.message)
+    } finally {
+      loader.hide(loadId)
+    }
+  }
+
+  const scanFrom = async (source: 'camera' | 'gallery') => {
+    try {
+      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.6, base64: true }
+      const perm = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (perm.status !== 'granted') {
+        toast.warning(
+          source === 'camera' ? 'Camera access needed' : 'Gallery access needed',
+          'Allow access in Settings.',
+        )
+        return
+      }
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options)
+      if (result.canceled || !result.assets[0]) return
+      await processScan(result.assets[0])
+    } catch (e: any) {
+      toast.error(
+        source === 'camera' ? 'Camera unavailable' : 'Could not open gallery',
+        source === 'camera' ? 'Use "Choose from gallery" on a simulator.' : e.message,
+      )
+    }
+  }
+
   const handleScan = () => {
-    toast.info('Coming soon', 'Camera scanning coming soon')
+    actionSheet.show({
+      title: 'Scan notes',
+      items: [
+        { icon: '📷', label: 'Take a photo',        onPress: () => scanFrom('camera')  },
+        { icon: '🖼️', label: 'Choose from gallery', onPress: () => scanFrom('gallery') },
+      ],
+    })
   }
 
   return (
@@ -89,7 +145,7 @@ export default function ModuleDetailScreen() {
 
       <TabBar
         options={TABS} value={tab} onChange={setTab}
-        indicator="line" showBorder tabAlign="scroll"
+        indicator="line" showBorder tabAlign="center"
         style={{ marginTop: 8, marginHorizontal: 16 }}
         colors={{
           background:  C.bgCard,
@@ -108,48 +164,73 @@ export default function ModuleDetailScreen() {
           <Stack gap={18}>
             {/* Hero */}
             <Stack
-              backgroundColor={C.navy} borderRadius={22} padding={22}
-              style={{
-                overflow: 'hidden',
-                shadowColor: '#0d0d1a', shadowOpacity: 0.25,
-                shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 10,
-              }}
+              backgroundColor={C.primaryBg} borderRadius={24} padding={16}
+              style={{ overflow: 'hidden', borderWidth: 1, borderColor: `${C.primary}22` }}
             >
               <Stack
-                position="absolute" top={-80} right={-60} width={220} height={220}
-                borderRadius={999} backgroundColor={`${mc.color}12`} pointerEvents="none"
+                style={{ position: 'absolute', right: -30, top: -30 }}
+                width={170} height={170} borderRadius={85}
+                backgroundColor={`${C.primary}12`} pointerEvents="none"
               />
               <Stack
-                backgroundColor={`${mc.color}22`} borderRadius={10}
-                paddingHorizontal={12} paddingVertical={5}
-                style={{ alignSelf: 'flex-start' }} marginBottom={10}
-              >
-                <Text variant="overline" color={mc.color} style={{ fontSize: 10, letterSpacing: 0.4 }}>
-                  {activeCourseCode || module?.course_code || 'MODULE'}
-                </Text>
-              </Stack>
-              <Text variant="title" color="#FFFFFF" fontWeight="800" style={{ lineHeight: 28 }}>
-                {activeModuleTitle || module?.title}
-              </Text>
+                style={{ position: 'absolute', right: 60, top: 50 }}
+                width={90} height={90} borderRadius={45}
+                backgroundColor={`${C.primary}0D`} pointerEvents="none"
+              />
 
-              {/* Stats row */}
-              <Stack horizontal gap={10} marginTop={18}>
-                {[
-                  { value: classDocs.length, label: 'Class docs', icon: 'book-open' as const },
-                  { value: myNotes.length,   label: 'My notes',   icon: 'edit-3' as const },
-                  { value: sessions.length,  label: 'AI chats',   icon: 'message-circle' as const },
-                ].map((stat) => (
+              <Stack horizontal alignItems="flex-start" gap={6} paddingBottom={16}>
+                <Stack flex={1} gap={10}>
                   <Stack
-                    key={stat.label} flex={1}
-                    backgroundColor="rgba(255,255,255,0.08)"
-                    borderRadius={14} padding={14} alignItems="center" gap={7}
-                    style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}
+                    backgroundColor={C.primary} borderRadius={12}
+                    paddingHorizontal={14} paddingVertical={6}
+                    style={{ alignSelf: 'flex-start' }}
                   >
-                    <Feather name={stat.icon} size={15} color="rgba(255,255,255,0.55)" />
-                    <Text variant="title" color="#FFFFFF" fontWeight="800"
-                      style={{ fontSize: 20 }}
+                    <Text variant="label" color={C.white} fontWeight="700">
+                      {activeCourseCode || module?.course_code || 'MODULE'}
+                    </Text>
+                  </Stack>
+                  <Text variant="title" color={C.textPrimary} fontWeight="800"
+                    style={{ fontSize: 22, lineHeight: 28 }}
+                  >
+                    {activeModuleTitle || module?.title}
+                  </Text>
+                  {!!module?.description && (
+                    <Text variant="caption" color={C.textSecondary}
+                      numberOfLines={3} style={{ lineHeight: 18 }}
+                    >
+                      {module.description}
+                    </Text>
+                  )}
+                </Stack>
+                <Stack style={{ marginTop: 28 }} pointerEvents="none">
+                  <LaptopArt accent={C.primary} width={118} height={88} />
+                </Stack>
+              </Stack>
+
+              {/* Stats card */}
+              <Stack
+                horizontal backgroundColor={C.bgCard} borderRadius={18}
+                style={{ borderWidth: 1, borderColor: C.border }}
+              >
+                {[
+                  { value: classDocs.length, label: 'Class docs', icon: 'book-open' as const,      color: C.chatColor,  bg: C.chatBg  },
+                  { value: myNotes.length,   label: 'My notes',   icon: 'edit-3' as const,         color: C.flashColor, bg: C.flashBg },
+                  { value: sessions.length,  label: 'AI chats',   icon: 'message-circle' as const, color: C.quizColor,  bg: C.quizBg  },
+                ].map((stat, i) => (
+                  <Stack
+                    key={stat.label} flex={1} alignItems="center" gap={6} paddingVertical={14}
+                    style={i > 0 ? { borderLeftWidth: 1, borderLeftColor: C.border } : undefined}
+                  >
+                    <Stack
+                      width={42} height={42} borderRadius={13}
+                      backgroundColor={stat.bg} alignItems="center" justifyContent="center"
+                    >
+                      <Feather name={stat.icon} size={19} color={stat.color} />
+                    </Stack>
+                    <Text variant="title" color={C.textPrimary} fontWeight="800"
+                      style={{ fontSize: 20, lineHeight: 24 }}
                     >{stat.value}</Text>
-                    <Text variant="caption" color="rgba(255,255,255,0.5)">{stat.label}</Text>
+                    <Text variant="caption" color={C.textSecondary}>{stat.label}</Text>
                   </Stack>
                 ))}
               </Stack>
@@ -157,10 +238,10 @@ export default function ModuleDetailScreen() {
 
             {/* AI tools grid */}
             <Stack>
-              <Text variant="subtitle" color={C.textPrimary} fontWeight="700" marginBottom={14}>
+              <Text variant="subtitle" color={C.textPrimary} fontWeight="800" marginBottom={14}>
                 AI Tools
               </Text>
-              <Stack style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              <Stack style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
                 {TOOLS.map((tool) => {
                   const meta = TOOL_META[tool.key as keyof typeof TOOL_META]
                   const color = C[meta.color as keyof typeof C] as string
@@ -168,30 +249,46 @@ export default function ModuleDetailScreen() {
 
                   return (
                     <StyledPressable
-                      key={tool.key} style={{ width: '47%' }}
+                      key={tool.key} style={{ width: '47.6%' }}
                       onPress={() => {
                         if (module) setActiveModule(module.id, module.title, module.course_code)
                         router.push(`/${tool.key}` as any)
                       }}
                     >
-                      <StyledCard
-                        backgroundColor={C.bgCard} borderRadius={18} padding={16}
-                        style={{ borderWidth: 1, borderColor: C.border }}
+                      <Stack
+                        backgroundColor={bg} borderRadius={22} padding={14}
+                        style={{ overflow: 'hidden', borderWidth: 1, borderColor: `${color}22`, minHeight: 148 }}
                       >
                         <Stack
-                          width={48} height={48} borderRadius={14}
-                          backgroundColor={bg} alignItems="center" justifyContent="center"
-                          marginBottom={12}
+                          pointerEvents="none"
+                          style={{ position: 'absolute', right: 0, bottom: 0 }}
                         >
-                          <Feather name={meta.icon} size={22} color={color} />
+                          <ToolArt kind={tool.key as ToolArtKind} color={color} id={`tool-art-${tool.key}`} />
                         </Stack>
-                        <Text variant="label" color={C.textPrimary} fontWeight="700">
+
+                        <Stack horizontal alignItems="center" justifyContent="space-between" marginBottom={12}>
+                          <Stack
+                            width={46} height={46} borderRadius={14}
+                            backgroundColor={`${color}26`} alignItems="center" justifyContent="center"
+                          >
+                            <Feather name={meta.icon} size={21} color={color} />
+                          </Stack>
+                          <Stack
+                            width={28} height={28} borderRadius={14}
+                            backgroundColor={`${color}1F`} alignItems="center" justifyContent="center"
+                          >
+                            <Feather name="chevron-right" size={15} color={color} />
+                          </Stack>
+                        </Stack>
+                        <Text variant="label" color={C.textPrimary} fontWeight="800" style={{ fontSize: 16 }}>
                           {meta.label}
                         </Text>
-                        <Text variant="caption" color={C.textSecondary} marginTop={3}>
+                        <Text variant="caption" color={C.textSecondary} marginTop={3}
+                          style={{ lineHeight: 16, maxWidth: '82%' }}
+                        >
                           {meta.desc}
                         </Text>
-                      </StyledCard>
+                      </Stack>
                     </StyledPressable>
                   )
                 })}
