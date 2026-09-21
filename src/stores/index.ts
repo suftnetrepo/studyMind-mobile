@@ -1,6 +1,7 @@
 import type { PremiumPlan } from '../services/premiumService'
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
+import * as FileSystem from 'expo-file-system'
 
 // ─── Theme store — matches nailbid pattern exactly ────────────────────────────
 export type ThemeMode = 'light' | 'dark' | 'system'
@@ -97,6 +98,17 @@ export const useAuthStore = create<AuthState>((set) => ({
 // (before the app decides its initial route) and written once when
 // onboarding finishes, with no other screen needing to subscribe to it.
 const ONBOARDING_KEY = 'studymind_onboarding_seen'
+
+// Keychain items survive uninstall but the documents folder does not, so a
+// missing marker file means this is a fresh install: drop stale login/onboarding.
+export async function ensureFreshInstall(): Promise<void> {
+  try {
+    const marker = `${FileSystem.documentDirectory}install-marker`
+    if ((await FileSystem.getInfoAsync(marker)).exists) return
+    await Promise.all([ACCESS_KEY, REFRESH_KEY, ONBOARDING_KEY].map((k) => SecureStore.deleteItemAsync(k).catch(() => {})))
+    await FileSystem.writeAsStringAsync(marker, '1')
+  } catch {}
+}
 
 export async function getOnboardingSeen(): Promise<boolean> {
   try {

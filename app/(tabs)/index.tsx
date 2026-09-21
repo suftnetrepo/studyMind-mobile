@@ -95,6 +95,15 @@ export default function HomeScreen() {
   // Depends only on a primitive id, so it can never re-trigger itself.
   useEffect(() => { loadNotes() }, [notesModuleId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Home previews the notes of the active module, or the first module when none is active. The Notes
+  // screens read the *active* module, so make that module active before opening them; otherwise they
+  // open on an empty list even though Home just showed notes.
+  const openNotes = (path: string) => {
+    const mod = allModules.find((m: any) => m.id === notesModuleId)
+    if (mod && activeModuleId !== mod.id) setActiveModule(mod.id, mod.title, mod.course_code)
+    router.push(path as any)
+  }
+
   // Tabs stay mounted, so refresh when Home regains focus. The effect depends only on the focus
   // flag, and the first focus is skipped because the mount fetch already covers it.
   const isFocused = useIsFocused()
@@ -427,7 +436,7 @@ export default function HomeScreen() {
               <Text variant="body" color={C.textMuted} >
                 Recent notes
               </Text>
-              <StyledPressable onPress={() => router.push('/notes' as any)}>
+              <StyledPressable onPress={() => openNotes('/notes')}>
                 <Text variant="bodySmall" color={C.primary} fontWeight="600">See all</Text>
               </StyledPressable>
             </Stack>
@@ -448,9 +457,9 @@ export default function HomeScreen() {
                 const body    = note.content.split('\n').slice(1).join(' ').replace(/\s+/g, ' ').trim()
                 const preview = body.length > 90 ? `${body.slice(0, 90).trimEnd()}…` : body
                 return (
-                  <StyledPressable key={note.id} onPress={() => router.push(`/notes/${note.id}`)}>
+                  <StyledPressable key={note.id} onPress={() => openNotes(`/notes/${note.id}`)}>
                     <Stack
-                      width={240} height={196} borderRadius={24} backgroundColor={tint.bg}
+                      width={240} height={140} borderRadius={24} backgroundColor={tint.bg}
                       style={{ overflow: 'hidden', borderWidth: 1, borderColor: `${tint.color}1F` }}
                     >
                       <Stack flex={1} padding={14} justifyContent="space-between">
@@ -473,23 +482,22 @@ export default function HomeScreen() {
                             </Text>
                           </Stack>
                         </Stack>
-                        <Stack gap={4}>
-                          <Text variant="subtitle" color={C.textPrimary} fontWeight="700"
-                            numberOfLines={1} style={{ fontSize: 16, lineHeight: 22 }}
+                        <Stack marginTop={4}>
+                          <Text variant="bodySmall" color={C.textPrimary} 
+                            numberOfLines={1} 
                           >
                             {note.title}
                           </Text>
                           <Text variant="caption" color={C.textSecondary}
-                            numberOfLines={2} style={{ lineHeight: 18 }}
+                            numberOfLines={1}
                           >
                             {preview || 'No additional text'}
                           </Text>
                         </Stack>
                       </Stack>
 
-                      <Stack height={1} marginHorizontal={16} backgroundColor={`${tint.color}33`} />
-
-                      <Stack horizontal alignItems="center" justifyContent="space-between" paddingHorizontal={14} paddingVertical={10}>
+              
+                      <Stack marginTop={8} horizontal alignItems="center" justifyContent="space-between" paddingHorizontal={14} paddingVertical={10}>
                         <Stack
                           backgroundColor={`${tint.color}1F`} borderRadius={12}
                           paddingHorizontal={10} paddingVertical={5}
@@ -535,7 +543,7 @@ export default function HomeScreen() {
 
         {/* Show notes CTA if no notes yet */}
         {recentNotes.length === 0 && modules.length > 0 && (
-          <StyledPressable onPress={() => router.push('/notes' as any)}>
+          <StyledPressable onPress={() => openNotes('/notes')}>
             <Stack
               backgroundColor={C.bgCard} borderRadius={18} padding={18}
               horizontal alignItems="center" gap={14}

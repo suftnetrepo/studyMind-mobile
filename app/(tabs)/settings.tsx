@@ -58,7 +58,7 @@ export default function SettingsScreen() {
       if (await StoreReview.hasAction()) {
         await StoreReview.requestReview()
       } else {
-        toast.info('Thanks!', 'Rating opens once StudyMind is live on the App Store.')
+        toast.info('Thanks!', 'Rating is not available right now. Try again from the App Store version.')
       }
     } catch {
       toast.info('Thanks!', 'Rating is not available right now.')
@@ -123,7 +123,7 @@ export default function SettingsScreen() {
 
       <StyledScrollView contentContainerStyle={{ padding: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
 
-        {/* StudyMind Pro: self-learners only (students and lecturers are institution-funded) */}
+        {/* Revvo Pro: self-learners only (students and lecturers are institution-funded) */}
         {isSelfLearner && (
             <StyledPressable onPress={() => router.push('/premium' as any)}>
               <StyledCard backgroundColor={C.bgCard} borderRadius={16} padding={16}
@@ -137,7 +137,7 @@ export default function SettingsScreen() {
                   </Stack>
                   <Stack flex={1}>
                     <Text variant="label" color={C.textPrimary} fontWeight="700">
-                      {isPremium ? 'StudyMind Pro' : 'Go Pro'}
+                      {isPremium ? 'Revvo Pro' : 'Go Pro'}
                     </Text>
                     <Text variant="caption" color={C.textSecondary}>
                       {isPremium ? 'Unlimited AI tools, thanks for your support' : 'Unlimited AI messages, quizzes and flashcards'}
@@ -235,7 +235,7 @@ export default function SettingsScreen() {
         <Group>
           <Row icon="help-circle" tone="chat" label="Help & Support" sub="FAQs and contact us" onPress={() => router.push('/help' as any)} />
           <Row icon="lock" tone="flash" label="Privacy & terms" sub="How your data is handled" onPress={() => router.push('/privacy' as any)} />
-          <Row icon="star" tone="sum" label="Rate StudyMind" sub="Share your feedback" onPress={rateApp} last />
+          <Row icon="star" tone="sum" label="Rate Revvo" sub="Share your feedback" onPress={rateApp} last />
         </Group>
 
         {/* Sign out — useAuth shows the confirm dialogue */}
@@ -259,7 +259,7 @@ export default function SettingsScreen() {
           >
             <Feather name="book-open" size={17} color={C.primary} />
           </Stack>
-          <Text variant="caption" color={C.textSecondary} fontWeight="700">StudyMind v{APP_VERSION}</Text>
+          <Text variant="caption" color={C.textSecondary} fontWeight="700">Revvo v{APP_VERSION}</Text>
           <Text variant="caption" color={C.textMuted}>Your AI-powered study assistant</Text>
         </Stack>
       </StyledScrollView>

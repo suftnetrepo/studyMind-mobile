@@ -1,7 +1,7 @@
 /**
  * premiumService.ts
  *
- * Manages StudyMind Pro entitlement and purchases via RevenueCat.
+ * Manages Revvo Pro entitlement and purchases via RevenueCat.
  *
  * ─── Gating model ──────────────────────────────────────────────────────────
  * Self-learners get daily per-feature limits, tracked on the device (src/utils/quota.ts);
@@ -9,7 +9,7 @@
  * never sees it. Students and lecturers are institution-funded and are never limited.
  *
  * ─── Setup still needed before this can go live ────────────────────────────
- * - iOS uses Revvo's RevenueCat project (StudyMind replaces Revvo, same bundle id and
+ * - iOS uses Revvo's RevenueCat project (Revvo replaces Revvo, same bundle id and
  *   "premium" entitlement). Android still needs its own products, RevenueCat mirror and
  *   "goog_" key; until then Android is treated as not premium.
  * - `react-native-purchases` needs native code — it does not run inside
@@ -29,7 +29,7 @@ import { PREMIUM_STORAGE_KEY, PREMIUM_ENTITLEMENT_ID, PREMIUM_SHARED_TEST_PROJEC
 // against App Store Connect, a "goog_" key only against Play Console.
 // These are RevenueCat's public/client keys (same category as a Stripe
 // publishable key) — they're meant to ship inside the app, not secrets.
-// Revvo's RevenueCat project (StudyMind replaces Revvo on the App Store, same bundle id).
+// Revvo's RevenueCat project (Revvo replaces Revvo on the App Store, same bundle id).
 // Android is not set up yet: create the products in Play Console, mirror them in RevenueCat, and
 // paste the "goog_" key here.
 const IOS_API_KEY     = 'appl_XFrjSZnJQHEErLQgJFWwTdgEQlQ'
@@ -284,12 +284,12 @@ export const getPremiumPrices = async (): Promise<PremiumPrices> => {
 }
 
 // ─── Identity ─────────────────────────────────────────────────────────────────
-// Logging in to RevenueCat with the StudyMind user id (and out on sign-out) ties a purchase
+// Logging in to RevenueCat with the Revvo user id (and out on sign-out) ties a purchase
 // to the account, so Pro follows the user across devices instead of one anonymous install.
 export const identifyUser = async (userId: string | null): Promise<EntitlementInfo> => {
   await initializeRevenueCat()
   if (initFailed) return INACTIVE
-  // Stay anonymous: logging in as a StudyMind user id would detach purchases that existing Revvo
+  // Stay anonymous: logging in as a Revvo user id would detach purchases that existing Revvo
   // customers made under their anonymous RevenueCat id.
   if (PREMIUM_SHARED_TEST_PROJECT) return getEntitlement()
   try {

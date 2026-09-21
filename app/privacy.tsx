@@ -32,7 +32,7 @@ export default function PrivacyScreen() {
       statusBarStyle={isDark ? 'light-content' : 'dark-content'}
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >
-      <ScreenHeader title="Privacy & terms" subtitle="How StudyMind handles your data" onBackPress={goBack} />
+      <ScreenHeader title="Privacy & terms" subtitle="How Revvo handles your data" onBackPress={goBack} />
       <StyledScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 32 }}>
         <Stack gap={10}>
           {POINTS.map((p) => (

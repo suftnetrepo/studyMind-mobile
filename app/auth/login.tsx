@@ -43,12 +43,12 @@ export default function LoginScreen() {
       <AuthBackground />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <StyledScrollView
-          contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 56, paddingBottom: 40 }}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           <Stack marginBottom={36}>
-            <BrandMark title="StudyMind AI" subtitle="Your AI-powered study assistant" />
+            <BrandMark />
           </Stack>
 
           <StyledCard backgroundColor={C.bgCard} borderRadius={22} padding={20} marginBottom={14}
@@ -87,6 +87,12 @@ export default function LoginScreen() {
               />
             </Stack>
           </StyledCard>
+
+          <Stack alignItems="flex-end" marginBottom={4}>
+            <StyledPressable onPress={() => router.push('/auth/forgot-password' as any)} hitSlop={8}>
+              <Text variant="bodySmall" color={C.primary} fontWeight="700">Forgot password?</Text>
+            </StyledPressable>
+          </Stack>
 
           <Stack marginTop={8}>
             <GradientButton label="Sign in" loading={loading} onPress={submit} />

@@ -66,7 +66,7 @@ export default function QuizScreen() {
 
   const formatQuizResults = (results: any, courseCode: string, topic?: string) => {
     const lines = [
-      `StudyMind AI — ${courseCode} Quiz Results`,
+      `Revvo — ${courseCode} Quiz Results`,
       topic ? `Topic: ${topic}` : '',
       `Score: ${Math.round(results.score)}% (${results.correct}/${results.total} correct)`,
       `Date: ${new Date().toLocaleString()}`,

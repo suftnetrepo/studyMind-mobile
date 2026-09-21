@@ -44,14 +44,14 @@ export async function shareText(text: string, filename: string, toast: Toast) {
 
 export function formatConversationForExport(messages: any[], title: string): string {
   const lines = [
-    `StudyMind AI — ${title}`,
+    `Revvo — ${title}`,
     `Exported: ${new Date().toLocaleString()}`,
     '─'.repeat(50),
     '',
   ]
   messages.forEach((m) => {
     if (m.loading) return
-    const role = m.role === 'user' ? 'You' : 'StudyMind AI'
+    const role = m.role === 'user' ? 'You' : 'Revvo'
     lines.push(`${role}:`)
     lines.push(m.role === 'user' ? m.content : stripCitations(m.content))
     if (m.sources?.length) {
@@ -64,7 +64,7 @@ export function formatConversationForExport(messages: any[], title: string): str
 
 export function formatSummaryForExport(summary: any, courseCode: string): string {
   return [
-    `StudyMind AI — ${courseCode} Summary`,
+    `Revvo — ${courseCode} Summary`,
     `Scope: ${summary.scope} | Sources: ${summary.source_doc_count} documents`,
     `Generated: ${new Date(summary.created_at).toLocaleString()}`,
     '─'.repeat(50),

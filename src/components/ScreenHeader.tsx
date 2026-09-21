@@ -11,18 +11,19 @@ interface ScreenHeaderProps {
   rightIcon?:  React.ReactNode
   fontSize?:   number
   marginTop?:  number
+  transparent?: boolean
 }
 
 export function ScreenHeader({
   title, subtitle, onBackPress,
-  variant = 'compact', rightIcon, fontSize = 17, marginTop = 0,
+  variant = 'compact', rightIcon, fontSize = 17, marginTop = 0, transparent = false,
 }: ScreenHeaderProps) {
   const C = useColors()
 
   if (variant === 'large') {
     return (
       <StyledPage.Header
-        backgroundColor={C.bg}
+        backgroundColor={transparent ? 'transparent' : C.bg}
         marginHorizontal={16}
         marginTop={marginTop}
         showBackArrow
@@ -44,7 +45,7 @@ export function ScreenHeader({
 
   return (
     <StyledPage.Header
-      backgroundColor={C.bg}
+      backgroundColor={transparent ? 'transparent' : C.bg}
       marginHorizontal={16}
       marginTop={marginTop}
       showBackArrow

@@ -1,0 +1,34 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="130" y1="100" x2="900" y2="920" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B1225"/>
+      <stop offset="0.45" stop-color="#151B3A"/>
+      <stop offset="1" stop-color="#090D1B"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(740 215) rotate(140) scale(630 630)">
+      <stop stop-color="#F5D17C" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#F5D17C" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="260" y1="260" x2="760" y2="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8E6A7"/>
+      <stop offset="0.25" stop-color="#F3CF74"/>
+      <stop offset="0.52" stop-color="#D7A94A"/>
+      <stop offset="0.75" stop-color="#B8832F"/>
+      <stop offset="1" stop-color="#F4D98A"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="255" y1="330" x2="754" y2="700" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="60" y="60" width="904" height="904" rx="220" fill="url(#bg)"/>
+  <rect x="60" y="60" width="904" height="904" rx="220" stroke="rgba(255,255,255,0.18)" stroke-width="4"/>
+  <ellipse cx="780" cy="250" rx="350" ry="300" fill="url(#glow)"/>
+
+  <path d="M250 760V280H385L512 555L638 280H774V760H664V451L562 717H462L360 451V760H250Z" fill="url(#gold)"/>
+  <path d="M360 760V415L462 620H562L664 415V760H744V280H640L512 562L384 280H280V760H360Z" fill="url(#accent)" opacity="0.4"/>
+
+  <path d="M278 242C376 152 474 110 512 110C552 110 646 152 744 242" stroke="rgba(255,255,255,0.12)" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="512" cy="160" r="18" fill="#F4D98A" opacity="0.9"/>
+</svg>

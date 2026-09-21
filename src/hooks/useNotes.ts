@@ -9,7 +9,11 @@ import {
 } from '../db/notes'
 
 export function useNotes(moduleId: string | null) {
-  const [notes,     setNotes]     = useState<Note[]>([])
+  // Loaded synchronously on first render so the list never flashes its "no notes" state first.
+  const [notes,     setNotes]     = useState<Note[]>(() => {
+    if (!moduleId) return []
+    try { initNotesDB(); return getNotesByModule(moduleId) } catch { return [] }
+  })
   const [loading,    setLoading]  = useState(false)
   const [syncingId,  setSyncingId] = useState<string | null>(null)
   const toast  = useToast()

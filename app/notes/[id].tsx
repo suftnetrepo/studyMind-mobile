@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Platform, TextInput, ScrollView, KeyboardAvoidingView } from 'react-native'
+import { Platform, TextInput, ScrollView, KeyboardAvoidingView, AppState } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import {
@@ -21,16 +21,24 @@ export default function NoteEditorScreen() {
   const { updateNote, syncNoteToBackend, syncingId, deleteNote } = useNotes(activeModuleId)
   const actionSheet = useActionSheet()
 
-  const [note,    setNote]    = useState<Note | null>(null)
-  const [content, setContent] = useState('')
+  // Read the note synchronously so the first render already has its text (loading it in an effect
+  // painted an empty screen for a frame before the content appeared).
+  const [note,    setNote]    = useState<Note | null>(() => (id ? getNoteById(id) : null))
+  const [content, setContent] = useState(() => (id ? getNoteById(id)?.content ?? '' : ''))
   const [input,   setInput]   = useState('')
+  const [sel,     setSel]     = useState({ start: 0, end: 0 })
+  const inputRef  = useRef<TextInput>(null)
   const scrollRef = useRef<ScrollView>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Reached via a route that used router.replace (e.g. the Notes tab
   // redirect) has no history to go back to — fall back to home instead of
   // letting router.back() throw "GO_BACK was not handled by any navigator".
-  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))
+  const goBack = () => {
+    flushRef.current()
+    if (router.canGoBack()) router.back()
+    else router.replace('/(tabs)' as any)
+  }
 
   useEffect(() => {
     if (id) {
@@ -39,20 +47,39 @@ export default function NoteEditorScreen() {
     }
   }, [id])
 
-  // Auto-save with 1s debounce
+  // Auto-save: write shortly after typing stops, and flush immediately whenever the screen loses
+  // focus, unmounts or the app goes to the background, so nothing typed can be lost.
+  const latest    = useRef({ note: null as Note | null, content: '' })
+  const dirty     = useRef(false)
+  const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved')
+  latest.current = { note, content }
+
+  const flushSave = useCallback(() => {
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null }
+    const { note: n, content: c } = latest.current
+    if (!dirty.current || !n) return
+    dirty.current = false
+    updateNote(n.id, c)
+    setNote((prev) => (prev ? { ...prev, synced: false } : prev))
+    setSaveState('saved')
+  }, [updateNote])
+
+  const flushRef = useRef(flushSave)
+  flushRef.current = flushSave
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => { if (st !== 'active') flushRef.current() })
+    return () => { sub.remove(); flushRef.current() }
+  }, [])
+
   const handleContentChange = useCallback((text: string) => {
+    latest.current.content = text
     setContent(text)
-    if (note) {
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(() => {
-        updateNote(note.id, text)
-        // Editing invalidates the previous sync (DB already flips synced=0
-        // on update) — reflect that locally so the pill doesn't keep
-        // claiming "Saved to AI" for content the AI has never seen.
-        setNote((prev) => (prev ? { ...prev, synced: false } : prev))
-      }, 1000)
-    }
-  }, [note, updateNote])
+    dirty.current = true
+    setSaveState('saving')
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => flushRef.current(), 500)
+  }, [])
 
   const handleSync = async (n: Note) => {
     const ok = await syncNoteToBackend(n)
@@ -65,11 +92,19 @@ export default function NoteEditorScreen() {
     return handleSync(n)
   }
 
+  // Insert a line break at the cursor of the composer, so a note can hold several lines per entry.
+  const handleNewLine = () => {
+    const at = Math.min(sel.start, input.length)
+    const to = Math.min(sel.end, input.length)
+    setInput(input.slice(0, at) + '\n' + input.slice(to))
+    inputRef.current?.focus()
+  }
+
   // Append new input as a new paragraph
   const handleSend = () => {
     if (!input.trim()) return
     const newContent = content
-      ? content + '\n\n' + input.trim()
+      ? content + '\n' + input.trim()
       : input.trim()
     setContent(newContent)
     setInput('')
@@ -153,6 +188,44 @@ export default function NoteEditorScreen() {
         }
       />
 
+      {/* Status and actions */}
+      {note && (() => {
+        const isSyncing = syncingId === note.id
+        const synced    = !!note.synced
+        return (
+          <Stack horizontal alignItems="center" gap={10} paddingHorizontal={20} paddingTop={8} paddingBottom={10}>
+            <StyledPressable onPress={flushSave} hitSlop={6}>
+              <Stack horizontal alignItems="center" gap={7} borderRadius={100}
+                paddingHorizontal={14} paddingVertical={8}
+                backgroundColor={saveState === 'saved' ? C.successBg : C.bgMuted}
+              >
+                <Feather name={saveState === 'saved' ? 'check-circle' : 'loader'} size={14}
+                  color={saveState === 'saved' ? C.success : C.textMuted} />
+                <Text variant="caption" fontWeight="700"
+                  color={saveState === 'saved' ? C.success : C.textSecondary}
+                >
+                  {saveState === 'saved' ? 'Saved' : 'Saving…'}
+                </Text>
+              </Stack>
+            </StyledPressable>
+
+            <StyledPressable onPress={() => handleSync(note)} disabled={isSyncing} hitSlop={6}>
+              <Stack horizontal alignItems="center" gap={7} borderRadius={100}
+                paddingHorizontal={14} paddingVertical={8}
+                backgroundColor={synced ? C.flashBg : C.sumBg}
+                style={isSyncing ? { opacity: 0.6 } : undefined}
+              >
+                <Feather name={synced ? 'check' : 'upload-cloud'} size={14}
+                  color={synced ? C.flashColor : C.sumColor} />
+                <Text variant="caption" fontWeight="700" color={synced ? C.flashColor : C.sumColor}>
+                  {isSyncing ? 'Syncing…' : synced ? 'AI ready' : 'Sync to AI'}
+                </Text>
+              </Stack>
+            </StyledPressable>
+          </Stack>
+        )
+      })()}
+
       {/* Note content area */}
       <ScrollView
         ref={scrollRef}
@@ -161,67 +234,24 @@ export default function NoteEditorScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {content ? (
-          <TextInput
-            value={content}
-            onChangeText={handleContentChange}
-            multiline
-            style={{
-              color:      C.textPrimary,
-              fontSize:   15,
-              fontFamily: 'PlusJakartaSans_400Regular',
-              lineHeight: 26,
-              textAlignVertical: 'top',
-            }}
-            placeholder="Start writing your notes..."
-            placeholderTextColor={C.textMuted}
-          />
-        ) : (
-          <Stack alignItems="center" justifyContent="center" padding={40} gap={14}>
-            <Stack
-              width={72} height={72} borderRadius={22}
-              backgroundColor={C.flashBg} alignItems="center" justifyContent="center"
-            >
-              <Feather name="edit-3" size={30} color={C.flashColor} />
-            </Stack>
-            <Text variant="subtitle" color={C.textPrimary} fontWeight="700" textAlign="center">
-              Start your note
-            </Text>
-            <Text variant="body" color={C.textSecondary} textAlign="center">
-              Type in the box below and tap Send to add to your note.
-              Tap ⋯ to use AI features when ready.
-            </Text>
-          </Stack>
-        )}
-
-        {/* Sync status — tap to save/re-sync directly, no need to go via ⋯ */}
-        {note && (() => {
-          const isSyncing = syncingId === note.id
-          return (
-            <StyledPressable
-              onPress={() => handleSync(note)}
-              disabled={isSyncing}
-              style={{ alignSelf: 'flex-start' }}
-            >
-              <Stack
-                horizontal alignItems="center" gap={7} marginTop={16}
-                backgroundColor={note.synced ? C.successBg : C.bgMuted}
-                borderRadius={10} paddingHorizontal={12} paddingVertical={8}
-              >
-                <Stack
-                  width={7} height={7} borderRadius={4}
-                  backgroundColor={note.synced ? C.success : C.warning}
-                  style={isSyncing ? { opacity: 0.5 } : undefined}
-                />
-                <Text variant="caption" color={note.synced ? C.success : C.textSecondary} fontWeight="600">
-                  {isSyncing
-                    ? 'Saving…'
-                    : note.synced ? 'Saved to AI' : 'Not yet saved to AI — tap to sync'}
-                </Text>
-              </Stack>
-            </StyledPressable>
-          )
-        })()}
+        <TextInput
+          value={content}
+          onChangeText={handleContentChange}
+          multiline
+          editable
+          onBlur={flushSave}
+          scrollEnabled={false}
+          style={{
+            color:      C.textPrimary,
+            fontSize:   15,
+            fontFamily: 'PlusJakartaSans_400Regular',
+            lineHeight: 21,
+            textAlignVertical: 'top',
+            minHeight: 120,
+          }}
+          placeholder="Start writing your note here, or use the box below to add to it."
+          placeholderTextColor={C.textMuted}
+        />
       </ScrollView>
 
       {/* Input bar — like chat */}
@@ -243,8 +273,10 @@ export default function NoteEditorScreen() {
             style={{ minHeight: 46, maxHeight: 140 }}
           >
             <TextInput
+              ref={inputRef}
               value={input}
               onChangeText={setInput}
+              onSelectionChange={(e) => setSel(e.nativeEvent.selection)}
               placeholder="Add to your notes..."
               placeholderTextColor={C.textMuted}
               multiline
@@ -258,6 +290,14 @@ export default function NoteEditorScreen() {
               }}
             />
           </Stack>
+          <StyledPressable
+            width={46} height={46} borderRadius={14}
+            backgroundColor={C.bgMuted} alignItems="center" justifyContent="center"
+            onPress={handleNewLine}
+            accessibilityLabel="Insert new line"
+          >
+            <Feather name="corner-down-left" size={18} color={C.textPrimary} />
+          </StyledPressable>
           <StyledPressable
             width={46} height={46} borderRadius={14}
             backgroundColor={input.trim() ? C.flashColor : C.bgMuted}

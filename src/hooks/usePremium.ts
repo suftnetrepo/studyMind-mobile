@@ -40,7 +40,7 @@ export function usePremium() {
           toastService.error('Purchase pending', 'It may take a moment to activate — pull to refresh or reopen the app.')
           return false
         }
-        toastService.success('Welcome to StudyMind Pro')
+        toastService.success('Welcome to Revvo Pro')
         return true
       } catch (err: any) {
         toastService.error('Purchase failed', err?.message)

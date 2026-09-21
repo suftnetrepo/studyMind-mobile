@@ -183,7 +183,7 @@ export default function NotesListScreen() {
             <Text variant="body" color={C.textSecondary} textAlign="center">Nothing found for "{query}".</Text>
           </Stack>
         ) : (
-          <Stack gap={14}>
+          <Stack gap={8}>
             {visible.map((note) => {
               const synced    = !!note.synced
               const tint      = synced ? { fg: C.flashColor, bg: C.flashBg } : { fg: C.sumColor, bg: C.sumBg }
@@ -195,7 +195,7 @@ export default function NotesListScreen() {
               return (
                 <StyledPressable key={note.id} onPress={() => handleNotePress(note)} onLongPress={() => handleNoteLongPress(note)}>
                   <Stack
-                    backgroundColor={tint.bg} borderRadius={24} padding={18} gap={8}
+                    backgroundColor={tint.bg} borderRadius={22} paddingHorizontal={16} paddingVertical={14} gap={4}
                     style={{
                       overflow: 'hidden', borderWidth: 1, borderColor: `${tint.fg}1F`,
                       shadowColor: tint.fg, shadowOpacity: 0.1, shadowRadius: 14,
@@ -225,12 +225,12 @@ export default function NotesListScreen() {
                     </Stack>
 
                     {preview ? (
-                      <Text variant="body" color={C.textSecondary} numberOfLines={2} style={{ lineHeight: 22 }}>{preview}</Text>
+                      <Text variant="body" color={C.textSecondary} numberOfLines={2} style={{ lineHeight: 20 }}>{preview}</Text>
                     ) : (
                       <Text variant="body" color={C.textMuted}>Empty note</Text>
                     )}
 
-                    <Stack horizontal alignItems="center" gap={10} marginTop={4}>
+                    <Stack horizontal alignItems="center" gap={10} marginTop={2}>
                       <Text variant="caption" color={C.textSecondary}>{wordCount} words</Text>
                       {synced && (
                         <Stack horizontal alignItems="center" gap={6} backgroundColor={`${tint.fg}22`}

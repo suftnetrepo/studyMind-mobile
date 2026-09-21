@@ -20,7 +20,7 @@ export default function TabsLayout() {
   const C = useColors()
   const user = useAuthStore((s) => s.user)
 
-  // Tie RevenueCat to the StudyMind account so the backend webhook can grant Pro to this user.
+  // Tie RevenueCat to the Revvo account so the backend webhook can grant Pro to this user.
   useEffect(() => {
     if (!user?.id) return
     identifyUser(user.id)

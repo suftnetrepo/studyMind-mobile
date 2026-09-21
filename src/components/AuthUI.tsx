@@ -1,6 +1,6 @@
 import React from 'react'
 import { ActivityIndicator, StyleSheet } from 'react-native'
-import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
+import Svg, { Defs, LinearGradient, Stop, Rect, Path } from 'react-native-svg'
 import { Feather } from '@expo/vector-icons'
 import { Stack, StyledPressable } from 'fluent-styles'
 import { Text } from './Text'
@@ -19,29 +19,47 @@ export function AuthBackground() {
   )
 }
 
-export function BrandMark({ title, subtitle }: { title: string; subtitle: string }) {
+export function BrandMark({ title, subtitle }: { title?: string; subtitle?: string }) {
   const C = useColors()
   return (
     <Stack alignItems="center" gap={14}>
       <Stack
-        width={84} height={84} borderRadius={26} alignItems="center" justifyContent="center"
+        width={92} height={92} borderRadius={28} alignItems="center" justifyContent="center"
         backgroundColor={C.bgCard}
         style={{
           borderWidth: 1, borderColor: `${C.primary}30`,
-          shadowColor: C.primary, shadowOpacity: 0.3, shadowRadius: 22,
+          shadowColor: C.primary, shadowOpacity: 0.28, shadowRadius: 22,
           shadowOffset: { width: 0, height: 10 }, elevation: 10,
         }}
       >
-        <Stack width={68} height={68} borderRadius={21} backgroundColor={C.primary}
-          alignItems="center" justifyContent="center"
-        >
-          <Feather name="book-open" size={32} color="#FFFFFF" />
+        <Svg width={74} height={74} viewBox="0 0 74 74" preserveAspectRatio="xMidYMid meet">
+          <Defs>
+            <LinearGradient id="brand-mark-gradient" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor="#7CC6FF" />
+              <Stop offset="0.35" stopColor="#7D8CFF" />
+              <Stop offset="0.7" stopColor="#B774FF" />
+              <Stop offset="1" stopColor="#F3D07B" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="74" height="74" rx="24" fill={C.bgCard} />
+          <Path
+            d="M12 57V19H20L36.5 41.2L53 19H61V57H53V31.7L40.2 48.9H32.8L20 31.7V57H12Z"
+            fill="url(#brand-mark-gradient)"
+          />
+          <Path
+            d="M12 57V19H20L36.5 41.2L53 19H61V57H53V31.7L40.2 48.9H32.8L20 31.7V57H12Z"
+            fill="none"
+            stroke="rgba(255,255,255,0.35)"
+            strokeWidth={1.5}
+          />
+        </Svg>
+      </Stack>
+      {(title || subtitle) && (
+        <Stack alignItems="center" gap={4}>
+          {!!title && <Text variant="header" color={C.textPrimary} fontWeight="800">{title}</Text>}
+          {!!subtitle && <Text variant="body" color={C.textSecondary}>{subtitle}</Text>}
         </Stack>
-      </Stack>
-      <Stack alignItems="center" gap={4}>
-        <Text variant="header" color={C.textPrimary} fontWeight="800">{title}</Text>
-        <Text variant="body" color={C.textSecondary}>{subtitle}</Text>
-      </Stack>
+      )}
     </Stack>
   )
 }

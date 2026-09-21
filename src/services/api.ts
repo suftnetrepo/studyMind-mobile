@@ -177,6 +177,9 @@ export const authService = {
     api.post<{ access_token: string; refresh_token: string; expires_in: number }>('/api/auth/login', { email, password }),
   register: (email: string, password: string, full_name: string, role: string) =>
     api.post('/api/auth/register', { email, password, full_name, role }),
+  forgotPassword: (email: string, new_password: string) =>
+    api.post<{ ok: boolean }>('/api/auth/forgot-password', { email: email.trim().toLowerCase(), new_password }),
+  config:   () => api.get<{ enabled_roles: string[] }>('/api/auth/config'),
   me:       () => api.get('/api/auth/me'),
   deleteMe: () => api.delete('/api/auth/me'),
   updateMe: (full_name: string) => api.patch<any>('/api/auth/me', { full_name }),

@@ -87,7 +87,7 @@ export default function PremiumScreen() {
 
   return (
     <StyledPage flex={1} backgroundColor={C.bg} statusBarStyle={isDark ? 'light-content' : 'dark-content'} statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}>
-      <ScreenHeader title="StudyMind Pro" onBackPress={goBack} />
+      <ScreenHeader title="Revvo Pro" onBackPress={goBack} />
 
       <StyledScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
 
@@ -100,11 +100,11 @@ export default function PremiumScreen() {
             <Feather name="star" size={28} color={C.primary} />
           </Stack>
           <Text variant="title" color={C.textPrimary} fontWeight="800" textAlign="center">
-            {isPremium ? 'StudyMind Pro' : 'StudyMind Pro'}
+            {isPremium ? 'Revvo Pro' : 'Revvo Pro'}
           </Text>
           <Text variant="body" color={C.textSecondary} textAlign="center" style={{ maxWidth: 300 }}>
             {isPremium
-              ? `You're on StudyMind Pro${plan ? ` · ${plan} plan` : ''}. Thanks for your support, every AI tool is unlimited.`
+              ? `You're on Revvo Pro${plan ? ` · ${plan} plan` : ''}. Thanks for your support, every AI tool is unlimited.`
               : 'Unlimited AI study tools, no daily limits'}
           </Text>
         </Stack>

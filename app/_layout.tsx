@@ -14,7 +14,7 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans'
-import { useAuthStore, useThemeStore, getOnboardingSeen } from '../src/stores'
+import { useAuthStore, useThemeStore, getOnboardingSeen, ensureFreshInstall } from '../src/stores'
 import { authService } from '../src/services/api'
 
 SplashScreen.preventAutoHideAsync()
@@ -38,6 +38,7 @@ export default function RootLayout() {
     const bootstrap = async () => {
       let authed = false
       try {
+        await ensureFreshInstall()
         await Promise.all([
           useThemeStore.getState().hydrate(),
           useAuthStore.getState().hydrate(),
@@ -100,6 +101,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)"         options={{ headerShown: false }} />
             <Stack.Screen name="onboarding"     options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="auth/login"     options={{ headerShown: false, animation: 'fade' }} />
+            <Stack.Screen name="auth/forgot-password" options={{ presentation: 'modal', headerShown: false }} />
             <Stack.Screen name="auth/register"  options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="module/[id]"    options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="chat/index"     options={{ headerShown: false, animation: 'slide_from_right' }} />

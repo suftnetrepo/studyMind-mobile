@@ -1,4 +1,4 @@
-// ─── StudyMind Pro configuration ────────────────────────────────────────────
+// ─── Revvo Pro configuration ────────────────────────────────────────────
 //
 // Gating model: free accounts have daily limits per AI feature (enforced by
 // the backend, see app/quota in studymind-final); Pro removes them.
@@ -37,12 +37,12 @@ export const PREMIUM_FEATURES = [
     description: 'Your requests always go to the front of the queue',
   },
   {
-    title:       'Support StudyMind',
-    description: 'Your subscription keeps StudyMind running and improving',
+    title:       'Support Revvo',
+    description: 'Your subscription keeps Revvo running and improving',
   },
 ] as const
 
-// StudyMind ships as the next version of Revvo on the App Store, so it reuses Revvo's app record:
+// Revvo ships as the next version of Revvo on the App Store, so it reuses Revvo's app record:
 // bundle id com.suftnet.revvo, Revvo's RevenueCat project, "premium" entitlement and the
 // com.suftnet.revvo.premium.* products (existing Revvo subscribers keep their Pro).
 export const PREMIUM_ENTITLEMENT_ID = 'premium'

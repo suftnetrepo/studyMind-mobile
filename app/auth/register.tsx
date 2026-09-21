@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Platform, KeyboardAvoidingView } from 'react-native'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
@@ -6,10 +6,10 @@ import {
   StyledPage, StyledScrollView, Stack, StyledCard, StyledPressable, StyledForm,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
-import { ScreenHeader } from '../../src/components/ScreenHeader'
-import { AuthBackground, GradientButton, EyeToggle, EMAIL_RE } from '../../src/components/AuthUI'
+import { AuthBackground, BrandMark, GradientButton, EyeToggle, EMAIL_RE } from '../../src/components/AuthUI'
 import { useColors, useIsDark, getFieldColors } from '../../src/constants'
 import { useAuth } from '../../src/hooks'
+import { authService } from '../../src/services/api'
 
 type Role = 'student' | 'lecturer' | 'self_learner'
 
@@ -24,12 +24,27 @@ export default function RegisterScreen() {
   const isDark = useIsDark()
   const { register, loading } = useAuth()
 
-  const [role,     setRole]     = useState<Role>('student')
+  const [role,     setRole]     = useState<Role>('self_learner')
   const [fullName, setFullName] = useState('')
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [showPw,   setShowPw]   = useState(false)
   const [tried,    setTried]    = useState(false)
+
+  // Which account types can sign up is decided by the server (launch gating). Until it answers, or
+  // if it can't be reached, only Self-learner is offered.
+  const [enabled, setEnabled] = useState<string[]>(['self_learner'])
+  useEffect(() => {
+    authService.config()
+      .then((c) => {
+        if (c.enabled_roles?.length) {
+          setEnabled(c.enabled_roles)
+          setRole((r) => (c.enabled_roles.includes(r) ? r : (c.enabled_roles[0] as Role)))
+        }
+      })
+      .catch(() => {})
+  }, [])
+  const visibleRoles = ROLES.filter((r) => enabled.includes(r.key))
 
   const FC = getFieldColors(C)
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/auth/login'))
@@ -55,21 +70,30 @@ export default function RegisterScreen() {
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >
       <AuthBackground />
-      <ScreenHeader
-        title="Create account"
-        subtitle="Join StudyMind AI to get started"
-        onBackPress={goBack}
-      />
+      {/* Back button only: the icon and form below are laid out like the login screen */}
+      <StyledPressable
+        onPress={goBack}
+        width={44} height={44} borderRadius={22}
+        backgroundColor={C.bgCard} alignItems="center" justifyContent="center"
+        style={{ position: 'absolute', top: Platform.OS === 'ios' ? 56 : 32, left: 20, zIndex: 5, borderWidth: 1, borderColor: C.border }}
+      >
+        <Feather name="arrow-left" size={20} color={C.textPrimary} />
+      </StyledPressable>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <StyledScrollView
-          contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 20, paddingBottom: 40 }}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: 70, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <Stack marginBottom={32}>
+            <BrandMark />
+          </Stack>
+
+          {visibleRoles.length > 1 && (
           <Stack gap={10} marginBottom={22}>
             <Text variant="subLabel" color={C.textSecondary} fontWeight="600">I am a…</Text>
-            {ROLES.map(({ key, icon, label, desc }) => {
+            {visibleRoles.map(({ key, icon, label, desc }) => {
               const on = role === key
               return (
                 <StyledPressable key={key} onPress={() => setRole(key)}>
@@ -101,6 +125,7 @@ export default function RegisterScreen() {
               )
             })}
           </Stack>
+          )}
 
           <StyledCard backgroundColor={C.bgCard} borderRadius={22} padding={20} marginBottom={20}
             style={{
