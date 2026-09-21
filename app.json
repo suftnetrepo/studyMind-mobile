@@ -14,18 +14,19 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.suftnet.studymind",
+      "bundleIdentifier": "com.suftnet.revvo",
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "StudyMind uses your camera to scan documents and questions.",
         "NSMicrophoneUsageDescription": "StudyMind uses your microphone for voice input in the AI tutor.",
         "NSPhotoLibraryUsageDescription": "StudyMind accesses your photo library to scan documents and questions."
-      }
+      },
+      "appleTeamId": "ZQADUF26X5"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#5B7FFF"
+        "backgroundColor": "#14163A"
       },
       "package": "com.suftnet.studymind",
       "versionCode": 1,
@@ -50,7 +51,8 @@
           "cameraPermission": "StudyMind uses the camera to capture document pages."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "./plugins/withFmtXcode26Fix"
     ],
     "scheme": "studymind",
     "experiments": {

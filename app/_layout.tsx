@@ -3,6 +3,9 @@ import { Stack, router } from 'expo-router'
 import { GlobalPortalProvider, PortalManager } from 'fluent-styles'
 import * as SplashScreen from 'expo-splash-screen'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { LogBox } from 'react-native'
+
+LogBox.ignoreLogs(['Error configuring Purchases', 'Purchase was cancelled'])
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -106,8 +109,15 @@ export default function RootLayout() {
             <Stack.Screen name="setup/lecturer"     options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="setup/self-learner" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="setup/paste-text"   options={{ headerShown: false, animation: 'slide_from_right' }} />
+            <Stack.Screen name="profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
+            <Stack.Screen name="help"    options={{ headerShown: false, animation: 'slide_from_right' }} />
+            <Stack.Screen name="privacy" options={{ headerShown: false, animation: 'slide_from_right' }} />
+            <Stack.Screen name="premium" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="quiz/create" options={{ presentation: 'modal', headerShown: false }} />
             <Stack.Screen name="quiz/index"     options={{ headerShown: false, animation: 'slide_from_right' }} />
+            <Stack.Screen name="flashcards/create" options={{ presentation: 'modal', headerShown: false }} />
             <Stack.Screen name="flashcards/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
+            <Stack.Screen name="summary/create" options={{ presentation: 'modal', headerShown: false }} />
             <Stack.Screen name="summary/index"  options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="notes/index"    options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="notes/[id]"     options={{ headerShown: false, animation: 'slide_from_right' }} />

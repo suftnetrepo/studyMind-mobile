@@ -23,7 +23,7 @@ export default function NotesTabScreen() {
   )
 
   return (
-    <StyledPage flex={1} backgroundColor={C.bg} showStatusBar
+    <StyledPage flex={1} backgroundColor={C.bg} edges={["top", "left", "right"]} showStatusBar
       statusBarStyle={isDark ? 'light-content' : 'dark-content'}
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >

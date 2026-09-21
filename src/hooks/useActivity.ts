@@ -7,16 +7,14 @@ function useFocusFetch<T>(fetcher: () => Promise<T>) {
   const [data,    setData]    = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useFocusEffect(useCallback(() => {
-    let active = true
-    fetcher()
-      .then((d) => { if (active) setData(d) })
-      .catch(() => {})
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-  }, [])) // eslint-disable-line react-hooks/exhaustive-deps
+  const refetch = useCallback(async () => {
+    try { setData(await fetcher()) } catch {}
+    setLoading(false)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { data, loading }
+  useFocusEffect(useCallback(() => { refetch() }, [refetch]))
+
+  return { data, loading, refetch }
 }
 
 export const useStreak          = () => useFocusFetch<StreakData>(activityService.streak)

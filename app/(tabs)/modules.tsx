@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
-import { Platform, TextInput } from 'react-native'
+import { Platform, TextInput, RefreshControl } from 'react-native'
 import { router } from 'expo-router'
+import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import {
   StyledPage, StyledScrollView, Stack,
   StyledCard, StyledPressable, StyledButton, TabBar, type TabItem,
-  useActionSheet, useToast,
+  useActionSheet, useToast, useDialogue,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { useColors, useIsDark, getModuleColors } from '../../src/constants'
@@ -131,13 +132,29 @@ export default function ModulesScreen() {
   const C      = useColors()
   const isDark = useIsDark()
   const { data: modules, loading, refetch } = useModules()
-  const { setActiveModule } = useModuleStore()
+  const [refreshing, setRefreshing] = React.useState(false)
+  const onRefresh = async () => {
+    setRefreshing(true)
+    await refetch(true)
+    setRefreshing(false)
+  }
+
+  // Tabs stay mounted, so refresh when this tab regains focus (the first focus is covered by the mount fetch).
+  const isFocused = useIsFocused()
+  const skipFirstFocus = React.useRef(true)
+  React.useEffect(() => {
+    if (!isFocused) return
+    if (skipFirstFocus.current) { skipFirstFocus.current = false; return }
+    refetch(true)
+  }, [isFocused]) // eslint-disable-line react-hooks/exhaustive-deps
+  const { setActiveModule, activeModuleId, clearActiveModule } = useModuleStore()
   const user = useAuthStore((s) => s.user)
   const [filter, setFilter] = useState<Filter>('all')
   const [submitting, setSubmitting] = useState(false)
 
   const actionSheet = useActionSheet()
   const toast        = useToast()
+  const dialogue     = useDialogue()
 
   const isStudent = user?.role === 'student'
   const canCreate = user?.role === 'lecturer' || user?.role === 'admin' || user?.role === 'self_learner'
@@ -204,6 +221,53 @@ export default function ModulesScreen() {
     )
   }
 
+  const setArchived = async (mod: any, archive: boolean) => {
+    try {
+      await (archive ? moduleService.archive(mod.id) : moduleService.restore(mod.id))
+      await refetch(true)
+      toast.success(archive ? 'Archived' : 'Restored', archive
+        ? `${mod.course_code || mod.title} is hidden from Home. Find it under Archived.`
+        : `${mod.course_code || mod.title} is back in your active modules.`)
+    } catch (e: any) {
+      toast.error('Could not update module', e.message)
+    }
+  }
+
+  const deleteModule = async (mod: any) => {
+    const ok = await dialogue.confirm({
+      title:        'Delete module?',
+      message:      `"${mod.title}" will be permanently deleted with all its documents and conversations. This cannot be undone.`,
+      icon:         '🗑️',
+      confirmLabel: 'Delete',
+      cancelLabel:  'Cancel',
+      destructive:  true,
+    })
+    if (!ok) return
+    try {
+      await moduleService.deleteModule(mod.id)
+      if (activeModuleId === mod.id) clearActiveModule()
+      await refetch(true)
+      toast.success('Module deleted', `${mod.course_code || mod.title} and its content have been removed.`)
+    } catch (e: any) {
+      toast.error('Could not delete module', e.message)
+    }
+  }
+
+  const openModuleMenu = (mod: any) => {
+    const archived = mod.status === 'archived'
+    actionSheet.show({
+      title: mod.title,
+      items: [
+        archived
+          ? { icon: '♻️', label: 'Restore module',    onPress: () => setArchived(mod, false) }
+          : { icon: '📦', label: 'Archive module',    onPress: () => setArchived(mod, true)  },
+        ...(mod.owner_id === user?.id
+          ? [{ icon: '🗑️', label: 'Delete module', onPress: () => deleteModule(mod) }]
+          : []),
+      ],
+    })
+  }
+
   const openAddMenu = () => {
     actionSheet.show({
       title: 'Add module',
@@ -215,7 +279,7 @@ export default function ModulesScreen() {
   }
 
   return (
-    <StyledPage flex={1} backgroundColor={C.bg} showStatusBar
+    <StyledPage flex={1} backgroundColor={C.bg} edges={["top", "left", "right"]} showStatusBar
       statusBarStyle={isDark ? 'light-content' : 'dark-content'}
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >
@@ -225,30 +289,12 @@ export default function ModulesScreen() {
             <Text variant="overline" color={C.textSecondary}>Your learning</Text>
             <Text variant="title" color={C.textPrimary} fontWeight="800">Modules</Text>
           </Stack>
-          {isStudent ? (
-            <StyledButton
-              backgroundColor={C.primaryBg} borderRadius={12}
-              paddingHorizontal={16} paddingVertical={9}
-              borderWidth={1} borderColor={C.primary}
-              onPress={openJoinSheet}
-            >
-              <Text variant="label" color={C.primary} fontWeight="700">+ Join</Text>
-            </StyledButton>
-          ) : (
-            <StyledButton
-              backgroundColor={C.primary} borderRadius={12}
-              paddingHorizontal={16} paddingVertical={9}
-              onPress={openAddMenu}
-            >
-              <Text variant="label" color={C.white} fontWeight="700">+ New</Text>
-            </StyledButton>
-          )}
         </Stack>
       </StyledPage.Header.Full>
 
       <TabBar
         options={TABS} value={filter} onChange={setFilter}
-        indicator="line" showBorder tabAlign="scroll"
+        indicator="line" showBorder tabAlign="center"
         style={{ marginHorizontal: 16, marginTop: 8 }}
         colors={{
           background: C.bgCard, activeText: C.primary,
@@ -256,7 +302,10 @@ export default function ModulesScreen() {
         }}
       />
 
-      <StyledScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <StyledScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} colors={[C.primary]} />}
+      >
         {loading && (
           <Stack gap={10} marginTop={8}>
             {[1, 2, 3].map((i) => (
@@ -279,7 +328,11 @@ export default function ModulesScreen() {
               No {filter === 'all' ? '' : filter} modules yet
             </Text>
             <Text variant="body" color={C.textSecondary} textAlign="center">
-              Create a module or enrol using an enrolment code from your lecturer.
+              {user?.role === 'student'
+                ? 'Tap + Join and enter the code your lecturer shared.'
+                : user?.role === 'self_learner'
+                ? 'Tap + New to create a course and add your study material.'
+                : 'Tap + New to create a module and upload materials.'}
             </Text>
           </Stack>
         )}
@@ -294,6 +347,7 @@ export default function ModulesScreen() {
                   setActiveModule(mod.id, mod.title, mod.course_code)
                   router.push(`/module/${mod.id}`)
                 }}
+                onLongPress={() => openModuleMenu(mod)}
               >
                 <StyledCard
                   backgroundColor={C.bgCard} borderRadius={18} padding={16}
@@ -336,7 +390,13 @@ export default function ModulesScreen() {
                         <Stack height={3} borderRadius={2} backgroundColor={mc.color} width={`${mod.progress ?? 0}%` as any} />
                       </Stack>
                     </Stack>
-                    <Text style={{ fontSize: 18, color: C.textMuted }}>›</Text>
+                    <StyledPressable
+                      onPress={() => openModuleMenu(mod)} hitSlop={10}
+                      width={32} height={32} borderRadius={16}
+                      alignItems="center" justifyContent="center"
+                    >
+                      <Feather name="more-vertical" size={18} color={C.textMuted} />
+                    </StyledPressable>
                   </Stack>
                 </StyledCard>
               </StyledPressable>
@@ -344,6 +404,20 @@ export default function ModulesScreen() {
           })}
         </Stack>
       </StyledScrollView>
+
+      {/* Add: students join with a code; everyone else creates (or joins) */}
+      <StyledPressable
+        onPress={isStudent ? openJoinSheet : openAddMenu}
+        width={58} height={58} borderRadius={29}
+        backgroundColor={C.primary} alignItems="center" justifyContent="center"
+        style={{
+          position: 'absolute', right: 20, bottom: 22,
+          shadowColor: C.primary, shadowOpacity: 0.4, shadowRadius: 12,
+          shadowOffset: { width: 0, height: 6 }, elevation: 8,
+        }}
+      >
+        <Feather name="plus" size={26} color={C.white} />
+      </StyledPressable>
     </StyledPage>
   )
 }

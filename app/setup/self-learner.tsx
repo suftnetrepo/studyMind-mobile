@@ -3,15 +3,18 @@ import { Platform, TextInput, KeyboardAvoidingView } from 'react-native'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import * as DocumentPicker from 'expo-document-picker'
+import * as ImagePicker from 'expo-image-picker'
+import { useIsFocused } from '@react-navigation/native'
 import {
   StyledPage, StyledScrollView, Stack, StyledCard, StyledButton, StyledForm, StyledPressable,
-  useToast, useLoader,
+  useToast, useLoader, useActionSheet,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { StepDots, HeroIcon } from '../../src/components/setup'
 import { useColors, useIsDark, getFieldColors } from '../../src/constants'
-import { moduleService } from '../../src/services/api'
+import { moduleService, chatService } from '../../src/services/api'
 import { useAuthStore, useModuleStore, setSetupDone } from '../../src/stores'
+import { quotaGate, incrementQuota } from '../../src/utils/quota'
 
 const EMOJIS = ['📖', '🐍', '📐', '💻', '🌍', '🔬', '🎨', '🏛️', '⚡', '🧠', '🎵', '📊']
 const LEVELS = [
@@ -19,11 +22,11 @@ const LEVELS = [
   { key: 'intermediate', label: 'Intermediate', desc: 'Some prior knowledge'      },
   { key: 'advanced',     label: 'Advanced',     desc: 'Deep technical knowledge'  },
 ]
-const FEATURES: { icon: keyof typeof Feather.glyphMap; label: string; desc: string }[] = [
-  { icon: 'message-circle', label: 'AI Tutor',   desc: 'Ask questions about your material'  },
-  { icon: 'help-circle',    label: 'AI Quiz',    desc: 'Test yourself on any topic'          },
-  { icon: 'credit-card',    label: 'Flashcards', desc: 'Memorise key terms and concepts'     },
-  { icon: 'clipboard',      label: 'AI Summary', desc: 'Get a structured overview instantly' },
+const FEATURES: { icon: keyof typeof Feather.glyphMap; label: string; desc: string; tone: 'chat' | 'quiz' | 'flash' | 'sum' }[] = [
+  { icon: 'message-circle', label: 'AI Tutor',   desc: 'Ask questions about your material',  tone: 'chat'  },
+  { icon: 'help-circle',    label: 'AI Quiz',    desc: 'Test yourself on any topic',          tone: 'quiz'  },
+  { icon: 'credit-card',    label: 'Flashcards', desc: 'Memorise key terms and concepts',     tone: 'flash' },
+  { icon: 'clipboard',      label: 'AI Summary', desc: 'Get a structured overview instantly', tone: 'sum'   },
 ]
 
 type Step = 'name' | 'content' | 'generate' | 'ready'
@@ -33,6 +36,7 @@ export default function SelfLearnerSetup() {
   const isDark = useIsDark()
   const toast  = useToast()
   const loader = useLoader()
+  const actionSheet = useActionSheet()
   const user   = useAuthStore((s) => s.user)
   const { setActiveModule } = useModuleStore()
 
@@ -97,14 +101,69 @@ export default function SelfLearnerSetup() {
     }
   }
 
+  // Returning from the paste-text screen: see whether the course now has content.
+  const isFocused = useIsFocused()
+  React.useEffect(() => {
+    if (!isFocused || !moduleId || step !== 'content') return
+    moduleService.documents(moduleId).then((docs) => { if (docs.length > 0) setHasContent(true) }).catch(() => {})
+  }, [isFocused, moduleId, step])
+
+  const scanFrom = async (source: 'camera' | 'gallery') => {
+    if (!moduleId) return
+    try {
+      const perm = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (perm.status !== 'granted') {
+        toast.warning('Access needed', 'Allow access in Settings.')
+        return
+      }
+      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.6, base64: true }
+      const res = source === 'camera'
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options)
+      if (res.canceled || !res.assets[0]?.base64) return
+      if (!(await quotaGate('scan_image'))) return
+
+      const asset  = res.assets[0]
+      const loadId = loader.show({ label: 'Reading document…', variant: 'dots' })
+      try {
+        const { text } = await chatService.extractFromImage(asset.base64!, asset.mimeType || 'image/jpeg')
+        await incrementQuota('scan_image')
+        if (text.trim().length < 10) {
+          toast.warning('No text found', 'Try again with the page in clear view.')
+          return
+        }
+        await moduleService.pasteText(moduleId, `Scanned document ${new Date().toLocaleDateString()}`, text, 'personal')
+        setHasContent(true)
+        toast.success('Document scanned!', 'Saved and indexed. Scan another page or continue.')
+      } finally {
+        loader.hide(loadId)
+      }
+    } catch (e: any) {
+      toast.error('Could not scan document', e.message)
+    }
+  }
+
+  const handleScan = () =>
+    actionSheet.show({
+      title: 'Scan a document',
+      items: [
+        { icon: '📷', label: 'Take a photo',        onPress: () => scanFrom('camera')  },
+        { icon: '🖼️', label: 'Choose from gallery', onPress: () => scanFrom('gallery') },
+      ],
+    })
+
   const handleGenerate = async () => {
     if (!moduleId || !topic.trim()) {
       toast.warning('Enter a topic', 'Tell us what to generate study material about.')
       return
     }
+    if (!(await quotaGate('generate_material'))) return
     const loadId = loader.show({ label: 'Generating study material…', variant: 'dots' })
     try {
       await moduleService.generateMaterial(moduleId, topic.trim(), level, 'personal')
+      await incrementQuota('generate_material')
       setHasContent(true)
       toast.success('Study material ready!', 'AI has created your study guide.')
       setStep('ready')
@@ -115,30 +174,30 @@ export default function SelfLearnerSetup() {
     }
   }
 
-  const OptionCard = ({ icon, title: t, desc, onPress, dark, dashed }: {
+  const OptionCard = ({ icon, title: t, desc, onPress, dark, dashed, tone }: {
     icon: keyof typeof Feather.glyphMap; title: string; desc: string; onPress: () => void
-    dark?: boolean; dashed?: boolean
+    dark?: boolean; dashed?: boolean; tone?: 'chat' | 'quiz' | 'flash'
   }) => (
     <StyledPressable style={{ width: '48%' }} onPress={onPress}>
       <Stack
         backgroundColor={dark ? C.navy : dashed ? C.bgMuted : C.bgCard}
         borderRadius={18} padding={18} alignItems="center" gap={10}
         style={{
-          minHeight: 138, overflow: 'hidden',
+          height: 150, overflow: 'hidden', justifyContent: 'center',
           borderWidth: dark ? 0 : 1.5, borderColor: C.border, borderStyle: dashed ? 'dashed' : 'solid',
         }}
       >
         <Stack
           width={50} height={50} borderRadius={15} alignItems="center" justifyContent="center"
-          backgroundColor={dark ? 'rgba(91,127,255,0.3)' : dashed ? C.bgCard : C.primaryBg}
+          backgroundColor={dark ? 'rgba(91,127,255,0.3)' : dashed ? C.bgCard : tone ? { chat: C.chatBg, quiz: C.quizBg, flash: C.flashBg }[tone] : C.primaryBg}
         >
-          <Feather name={icon} size={22} color={dark ? '#FFFFFF' : dashed ? C.textSecondary : C.primary} />
+          <Feather name={icon} size={22} color={dark ? '#FFFFFF' : dashed ? C.textSecondary : tone ? { chat: C.chatColor, quiz: C.quizColor, flash: C.flashColor }[tone] : C.primary} />
         </Stack>
         <Stack alignItems="center" gap={3}>
           <Text variant="label" color={dark ? '#FFFFFF' : dashed ? C.textSecondary : C.textPrimary}
             fontWeight="700" textAlign="center"
           >{t}</Text>
-          <Text variant="caption" color={dark ? 'rgba(255,255,255,0.6)' : C.textMuted} textAlign="center">{desc}</Text>
+          <Text variant="caption" color={dark ? 'rgba(255,255,255,0.6)' : C.textMuted} textAlign="center" numberOfLines={2}>{desc}</Text>
         </Stack>
       </Stack>
     </StyledPressable>
@@ -212,17 +271,17 @@ export default function SelfLearnerSetup() {
                 </Text>
               </Stack>
               <Stack style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
-                <OptionCard icon="file-text" title="Upload a file" desc="PDF, TXT or Markdown" onPress={handleUploadFile} />
-                <OptionCard icon="clipboard" title="Paste text" desc="Article, notes or transcript"
+                <OptionCard icon="file-text" tone="chat" title="Upload a file" desc="PDF, TXT or Markdown" onPress={handleUploadFile} />
+                <OptionCard icon="clipboard" tone="quiz" title="Paste text" desc="Article, notes or transcript"
                   onPress={() => router.push({ pathname: '/setup/paste-text', params: { moduleId: moduleId || '' } })}
                 />
+                <OptionCard icon="camera" tone="flash" title="Scan a document" desc="Photo of a page or notes" onPress={handleScan} />
                 <OptionCard icon="cpu" title="Generate with AI" desc="AI creates a study guide" dark onPress={() => setStep('generate')} />
-                <OptionCard icon="skip-forward" title="Skip for now" desc="Add content later" dashed onPress={() => setStep('ready')} />
               </Stack>
               <StyledButton backgroundColor={C.bgCard} borderRadius={16} paddingVertical={14}
                 borderWidth={1} borderColor={C.border} onPress={() => setStep('ready')}
               >
-                <Text variant="button" color={C.textSecondary}>I added text, continue</Text>
+                <Text variant="button" color={C.textSecondary}>{hasContent ? 'Continue' : 'Skip for now'}</Text>
               </StyledButton>
             </Stack>
           )}
@@ -314,10 +373,12 @@ export default function SelfLearnerSetup() {
                 <Stack gap={14}>
                   {FEATURES.map((f) => (
                     <Stack key={f.label} horizontal alignItems="center" gap={14}>
-                      <Stack width={40} height={40} borderRadius={12} backgroundColor={C.primaryBg}
+                      <Stack width={40} height={40} borderRadius={12}
+                        backgroundColor={{ chat: C.chatBg, quiz: C.quizBg, flash: C.flashBg, sum: C.sumBg }[f.tone]}
                         alignItems="center" justifyContent="center"
                       >
-                        <Feather name={f.icon} size={18} color={C.primary} />
+                        <Feather name={f.icon} size={18}
+                          color={{ chat: C.chatColor, quiz: C.quizColor, flash: C.flashColor, sum: C.sumColor }[f.tone]} />
                       </Stack>
                       <Stack flex={1} gap={2}>
                         <Text variant="label" color={C.textPrimary} fontWeight="700">{f.label}</Text>

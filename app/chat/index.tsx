@@ -11,6 +11,7 @@ import {
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { RichText } from '../../src/components/RichText'
+import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { useChat, type ChatMessage, type ScopeMode, type ComplexityLevel } from '../../src/hooks'
@@ -89,10 +90,12 @@ export default function ChatScreen() {
 
   const processImage = async (asset: ImagePicker.ImagePickerAsset) => {
     if (!asset.base64) return
+    if (!(await quotaGate('scan_image'))) return
     const loadId = loader.show({ label: 'Reading image…', variant: 'dots' })
     setBusy(true)
     try {
       const extracted = await chatService.extractFromImage(asset.base64, asset.mimeType || 'image/jpeg')
+      await incrementQuota('scan_image')
       if (!extracted.text?.trim()) {
         toast.warning('No text found', 'Try again with the text in clear view.')
         return
@@ -373,15 +376,6 @@ export default function ChatScreen() {
           </StyledPressable>
         }
       />
-
-      <StyledPressable
-        onPress={() => router.push('/general-chat' as any)}
-        style={{ alignSelf: 'flex-end', marginRight: 20, marginBottom: 4 }}
-      >
-        <Text variant="caption" color={C.primary} fontWeight="600">
-          Switch to General Chat →
-        </Text>
-      </StyledPressable>
 
       {/* Complexity level */}
       <Stack horizontal paddingHorizontal={20} paddingTop={4} paddingBottom={8} gap={8}>

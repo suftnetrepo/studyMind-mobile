@@ -1463,6 +1463,23 @@
   dependencies:
     nanoid "^3.3.11"
 
+"@revenuecat/purchases-js-hybrid-mappings@19.0.0":
+  version "19.0.0"
+  resolved "https://registry.yarnpkg.com/@revenuecat/purchases-js-hybrid-mappings/-/purchases-js-hybrid-mappings-19.0.0.tgz#c5cf992929dda6c290b5e1a8eb5bb1511d87abd0"
+  integrity sha512-M4fFeftK6/3gimhaLPyVEXw6hGSqry0e63anJhvaBurl92Of0dUONPmoFOp3heYKs/BUaw3mRosyG64KO7JI7A==
+  dependencies:
+    "@revenuecat/purchases-js" "1.60.1"
+
+"@revenuecat/purchases-js@1.60.1":
+  version "1.60.1"
+  resolved "https://registry.yarnpkg.com/@revenuecat/purchases-js/-/purchases-js-1.60.1.tgz#95b98c877a70c4f0b1e3e998259c3b514513adc5"
+  integrity sha512-FmwLF525G30y8sLtVQIdk8m5fx1aGo7c54jDT+qpvSWb/cOgnwVWxppU/PU9UygNsDQhltzS+jlOvlemLfNJew==
+
+"@revenuecat/purchases-typescript-internal@19.0.0":
+  version "19.0.0"
+  resolved "https://registry.yarnpkg.com/@revenuecat/purchases-typescript-internal/-/purchases-typescript-internal-19.0.0.tgz#bc334c33f584c346c7134adb789ee0fe3c42118a"
+  integrity sha512-ae7E+6z2Ikk44l7c5SwQ513EC3uA/Lu7TVsHzsACyOiHrIIqAfKblmpvbVyhorvsFLO22Rb53b8+17xq7DuZtQ==
+
 "@sinclair/typebox@^0.27.8":
   version "0.27.12"
   resolved "https://registry.npmjs.org/@sinclair/typebox/-/typebox-0.27.12.tgz"
@@ -2734,6 +2751,11 @@ expo-status-bar@~2.2.3:
   dependencies:
     react-native-edge-to-edge "1.6.0"
     react-native-is-edge-to-edge "^1.1.6"
+
+expo-store-review@~8.1.5:
+  version "8.1.5"
+  resolved "https://registry.yarnpkg.com/expo-store-review/-/expo-store-review-8.1.5.tgz#d025baddfd306f8e52854e4eb168bfed0afa017b"
+  integrity sha512-PMNMIt6UrdMYyRzCCbmCmbIkwSgIXhGNQHsgmOgq9FgtYLW5Oo2FD3zwB0KU2u/MpTTt/XyuuADuFvxE+Vh9uw==
 
 expo@^53.0.0:
   version "53.0.27"
@@ -4321,6 +4343,14 @@ react-native-popover-view@^6.1.0:
   dependencies:
     deprecated-react-native-prop-types "^2.3.0"
     prop-types "^15.8.1"
+
+react-native-purchases@^10.10.0:
+  version "10.10.0"
+  resolved "https://registry.yarnpkg.com/react-native-purchases/-/react-native-purchases-10.10.0.tgz#0f30735ef38ed0acce0b9cbb7a29d1b3077209db"
+  integrity sha512-Nrlw+k2BZWN8uiXoaMyfY5CU8EXmev+UzuHOzAOanwUA+5uATS5uFh6qDm1A4/LIngmBxMrDsp7I47XqcLTBYQ==
+  dependencies:
+    "@revenuecat/purchases-js-hybrid-mappings" "19.0.0"
+    "@revenuecat/purchases-typescript-internal" "19.0.0"
 
 react-native-reanimated@~3.17.4:
   version "3.17.5"

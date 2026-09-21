@@ -10,6 +10,7 @@ import {
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
+import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { useColors, useIsDark, TOOLS } from '../../src/constants'
 import { useModuleStore, useAuthStore } from '../../src/stores'
 import { useModuleDetail } from '../../src/hooks'
@@ -29,10 +30,10 @@ const FILE_ICON: Record<string, keyof typeof Feather.glyphMap> = {
 }
 
 const TOOL_META = {
-  chat:       { icon: 'message-circle', label: 'AI Tutor',   desc: 'Ask questions and get instant help', color: 'chatColor',  bg: 'chatBg'  },
-  quiz:       { icon: 'help-circle',    label: 'AI Quiz',    desc: 'Test yourself and track your progress', color: 'quizColor',  bg: 'quizBg'  },
+  chat:       { icon: 'message-circle', label: 'Tutor',      desc: 'Ask questions and get instant help', color: 'chatColor',  bg: 'chatBg'  },
+  quiz:       { icon: 'help-circle',    label: 'Quiz',       desc: 'Test yourself and track your progress', color: 'quizColor',  bg: 'quizBg'  },
   flashcards: { icon: 'credit-card',    label: 'Flashcards', desc: 'Memorise key terms with spaced repetition', color: 'flashColor', bg: 'flashBg' },
-  summary:    { icon: 'clipboard',      label: 'AI Summary', desc: 'Get a clear overview of any topic', color: 'sumColor',   bg: 'sumBg'   },
+  summary:    { icon: 'clipboard',      label: 'Summary',    desc: 'Get a clear overview of any topic', color: 'sumColor',   bg: 'sumBg'   },
 } as const satisfies Record<string, { icon: keyof typeof Feather.glyphMap; label: string; desc: string; color: string; bg: string }>
 
 export default function ModuleDetailScreen() {
@@ -45,7 +46,7 @@ export default function ModuleDetailScreen() {
   const [tab, setTab] = React.useState<TabKey>('overview')
 
   const {
-    module, documents, sessions, loading, uploadDocument, deleteDocument,
+    module, documents, sessions, loading, uploadDocument, deleteDocument, deleteSession,
   } = useModuleDetail(id || null)
   const { notes, createNote, updateNote } = useNotes(id || null)
   const toast = useToast()
@@ -78,9 +79,11 @@ export default function ModuleDetailScreen() {
 
   const processScan = async (asset: ImagePicker.ImagePickerAsset) => {
     if (!asset.base64) return
+    if (!(await quotaGate('scan_image'))) return
     const loadId = loader.show({ label: 'Reading page…', variant: 'dots' })
     try {
       const { text } = await chatService.extractFromImage(asset.base64, asset.mimeType || 'image/jpeg')
+      await incrementQuota('scan_image')
       if (!text?.trim()) {
         toast.warning('No text found', 'Try again with the page in clear view.')
         return
@@ -238,7 +241,7 @@ export default function ModuleDetailScreen() {
 
             {/* AI tools grid */}
             <Stack>
-              <Text variant="subtitle" color={C.textPrimary} fontWeight="800" marginBottom={14}>
+              <Text paddingHorizontal={16} variant="body" color={C.textMuted}  marginBottom={14}>
                 AI Tools
               </Text>
               <Stack style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
@@ -252,6 +255,8 @@ export default function ModuleDetailScreen() {
                       key={tool.key} style={{ width: '47.6%' }}
                       onPress={() => {
                         if (module) setActiveModule(module.id, module.title, module.course_code)
+                        // Tutor opens this module's Chat tab, where you can continue a chat or start a new one.
+                        if (tool.key === 'chat') { setTab('chat'); return }
                         router.push(`/${tool.key}` as any)
                       }}
                     >
@@ -392,54 +397,6 @@ export default function ModuleDetailScreen() {
 
         {tab === 'documents' && !isLecturer && (
           <Stack gap={14}>
-            <Text variant="overline" color={C.textSecondary}>My study notes</Text>
-
-            <Stack horizontal gap={10}>
-              <StyledButton
-                flex={1}
-                backgroundColor={C.flashColor} borderRadius={14} paddingVertical={14}
-                onPress={() => handleUpload('personal')}
-                style={{
-                  shadowColor: C.flashColor, shadowOpacity: 0.3,
-                  shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5,
-                }}
-              >
-                <Stack horizontal alignItems="center" justifyContent="center" gap={7}>
-                  <Feather name="upload" size={15} color={C.white} />
-                  <Text variant="button" color={C.white}>Upload notes</Text>
-                </Stack>
-              </StyledButton>
-              <StyledPressable
-                onPress={handleScan}
-                backgroundColor={C.bgCard} borderRadius={14} paddingVertical={14}
-                alignItems="center" justifyContent="center"
-                style={{ width: 60, borderWidth: 1, borderColor: C.border }}
-              >
-                <Feather name="camera" size={18} color={C.textPrimary} />
-              </StyledPressable>
-            </Stack>
-
-            <StyledPressable onPress={() => router.push('/notes')}>
-              <StyledCard backgroundColor={C.bgCard} borderRadius={16} padding={14}
-                style={{ borderWidth: 1, borderColor: C.border }}
-              >
-                <Stack horizontal alignItems="center" gap={12}>
-                  <Stack width={42} height={42} borderRadius={12}
-                    backgroundColor={C.flashBg} alignItems="center" justifyContent="center"
-                  >
-                    <Feather name="edit-3" size={19} color={C.flashColor} />
-                  </Stack>
-                  <Stack flex={1}>
-                    <Text variant="label" color={C.textPrimary} fontWeight="700">Written notes</Text>
-                    <Text variant="caption" color={C.textSecondary}>
-                      {notes.length} note{notes.length !== 1 ? 's' : ''} · tap to write or view
-                    </Text>
-                  </Stack>
-                  <Text style={{ fontSize: 16, color: C.textMuted }}>›</Text>
-                </Stack>
-              </StyledCard>
-            </StyledPressable>
-
             {loading && (
               <Stack gap={10}>
                 {[1, 2, 3].map((i) => (
@@ -452,7 +409,6 @@ export default function ModuleDetailScreen() {
 
             {myNotes.length > 0 && (
               <Stack gap={10}>
-                <Text variant="overline" color={C.textSecondary}>Uploaded files</Text>
                 {myNotes.map((doc) => (
                   <StyledCard key={doc.id} backgroundColor={C.bgCard} borderRadius={14} padding={14}
                     style={{ borderWidth: 1, borderColor: C.border }}
@@ -501,9 +457,9 @@ export default function ModuleDetailScreen() {
                 style={{ borderWidth: 1, borderColor: C.border }}
               >
                 <Feather name="folder" size={36} color={C.textMuted} />
-                <Text variant="subtitle" color={C.textPrimary} fontWeight="700">No uploaded files yet</Text>
+                <Text variant="subtitle" color={C.textPrimary} fontWeight="700">No documents yet</Text>
                 <Text variant="body" color={C.textSecondary} textAlign="center">
-                  Upload a document or use Written notes above to start studying.
+                  Tap the + button to scan a page or upload a file and start studying.
                 </Text>
               </StyledCard>
             )}
@@ -513,20 +469,6 @@ export default function ModuleDetailScreen() {
         {/* ── Chat history ─────────────────────────────────────────────── */}
         {tab === 'chat' && (
           <Stack gap={10}>
-            <StyledButton
-              backgroundColor={C.primary} borderRadius={14} paddingVertical={14}
-              onPress={() => {
-                if (module) setActiveModule(module.id, module.title, module.course_code)
-                router.push('/chat')
-              }}
-              style={{
-                shadowColor: C.primary, shadowOpacity: 0.3,
-                shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5,
-              }}
-            >
-              <Text variant="button" color={C.white}>+ New conversation</Text>
-            </StyledButton>
-
             {/* Recent sessions */}
             {sessions.length === 0 ? (
               <StyledCard backgroundColor={C.bgCard} borderRadius={18} padding={28}
@@ -563,7 +505,13 @@ export default function ModuleDetailScreen() {
                           {session.message_count ?? 0} messages
                         </Text>
                       </Stack>
-                      <Text style={{ fontSize: 16, color: C.textMuted }}>›</Text>
+                      <StyledPressable
+                        onPress={() => deleteSession(session.id, session.title)}
+                        width={32} height={32} borderRadius={10} hitSlop={8}
+                        alignItems="center" justifyContent="center"
+                      >
+                        <Feather name="trash-2" size={16} color={C.textMuted} />
+                      </StyledPressable>
                     </Stack>
                   </StyledCard>
                 </StyledPressable>
@@ -572,6 +520,50 @@ export default function ModuleDetailScreen() {
           </Stack>
         )}
       </StyledScrollView>
+
+
+      {/* Add to this module: scan a page or upload a file */}
+      {tab === 'documents' && !isLecturer && (
+        <StyledPressable
+          onPress={() =>
+            actionSheet.show({
+              title: 'Add to this module',
+              items: [
+                { icon: '📷', label: 'Scan a page',   onPress: handleScan },
+                { icon: '📄', label: 'Upload a file', onPress: () => handleUpload('personal') },
+              ],
+            })
+          }
+          width={58} height={58} borderRadius={29}
+          backgroundColor={C.flashColor} alignItems="center" justifyContent="center"
+          style={{
+            position: 'absolute', right: 20, bottom: Platform.OS === 'ios' ? 34 : 22,
+            shadowColor: C.flashColor, shadowOpacity: 0.4, shadowRadius: 12,
+            shadowOffset: { width: 0, height: 6 }, elevation: 8,
+          }}
+        >
+          <Feather name="plus" size={26} color={C.white} />
+        </StyledPressable>
+      )}
+
+      {/* New conversation */}
+      {tab === 'chat' && (
+        <StyledPressable
+          onPress={() => {
+            if (module) setActiveModule(module.id, module.title, module.course_code)
+            router.push('/chat')
+          }}
+          width={58} height={58} borderRadius={29}
+          backgroundColor={C.chatColor} alignItems="center" justifyContent="center"
+          style={{
+            position: 'absolute', right: 20, bottom: Platform.OS === 'ios' ? 34 : 22,
+            shadowColor: C.chatColor, shadowOpacity: 0.4, shadowRadius: 12,
+            shadowOffset: { width: 0, height: 6 }, elevation: 8,
+          }}
+        >
+          <Feather name="plus" size={26} color={C.white} />
+        </StyledPressable>
+      )}
     </StyledPage>
   )
 }

@@ -2,7 +2,8 @@ import React, { useEffect } from 'react'
 import { Tabs, router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { useColors } from '../../src/constants'
-import { useAuthStore, getSetupDone } from '../../src/stores'
+import { useAuthStore, usePremiumStore, getSetupDone } from '../../src/stores'
+import { identifyUser } from '../../src/services/premiumService'
 import { onboardingService } from '../../src/services/api'
 
 const Icon = ({ name, color }: { name: keyof typeof Feather.glyphMap; color: string }) => (
@@ -18,6 +19,14 @@ const SETUP_ROUTES: Record<string, string> = {
 export default function TabsLayout() {
   const C = useColors()
   const user = useAuthStore((s) => s.user)
+
+  // Tie RevenueCat to the StudyMind account so the backend webhook can grant Pro to this user.
+  useEffect(() => {
+    if (!user?.id) return
+    identifyUser(user.id)
+      .then((info) => usePremiumStore.getState().setEntitlement(info.isActive, info.plan))
+      .catch(() => {})
+  }, [user?.id])
 
   // First launch after sign-in: send users who haven't set up their role to the right flow.
   useEffect(() => {
@@ -83,10 +92,10 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="settings"
         options={{
-          title:      'Profile',
-          tabBarIcon: ({ color }) => <Icon name="user" color={color} />,
+          title:      'Settings',
+          tabBarIcon: ({ color }) => <Icon name="settings" color={color} />,
         }}
       />
     </Tabs>

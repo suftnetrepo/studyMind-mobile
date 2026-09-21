@@ -12,16 +12,21 @@ import { EmptyState } from '../../src/components/EmptyState'
 import { RichText } from '../../src/components/RichText'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
-import { useSummary, type SummaryScope } from '../../src/hooks'
+import { useSummary } from '../../src/hooks'
+import { useIsFocused } from '@react-navigation/native'
+import { takePendingSummary } from '../../src/utils/summaryBridge'
 import { copyToClipboard, shareText, formatSummaryForExport } from '../../src/utils/share'
 
-const SCOPE_OPTIONS: {
-  key: SummaryScope; label: string; icon: keyof typeof Feather.glyphMap; desc: string
-}[] = [
-  { key: 'module',   label: 'Full module',     icon: 'book-open', desc: 'All materials in this module' },
-  { key: 'week',     label: 'Current week',    icon: 'calendar',  desc: "This week's uploaded materials" },
-  { key: 'document', label: 'Latest document', icon: 'file-text', desc: 'The most recently uploaded file' },
-]
+const SCOPE_LABEL: Record<string, string> = { module: 'Full module', week: 'Current week', document: 'Latest document' }
+
+// The API stores no title (and every summary opens with the same section headings), so title it by
+// scope and preview its first point.
+const summaryTitle = (scope: string) => `${SCOPE_LABEL[scope] ?? 'Module'} summary`
+
+function summaryPreview(content: string): string {
+  const line = content.split('\n').map((l) => l.trim()).find((l) => l && !l.startsWith('#'))
+  return (line || '').replace(/^[-•*]\s*/, '').replace(/[*_`]/g, '')
+}
 
 const SECTION_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   'Key Concepts':                  'zap',
@@ -54,159 +59,117 @@ export default function SummaryScreen() {
   const isDark = useIsDark()
   const { activeModuleId, activeCourseCode, activeModuleTitle } = useModuleStore()
 
-  const [scope, setScope] = React.useState<SummaryScope>('module')
-  const [topic, setTopic] = React.useState('')
-  const { summary, summaries, generating, generate, openSummary, closeSummary } = useSummary(activeModuleId)
+  const { summary, summaries, loaded, refreshSummaries, openSummary, closeSummary, deleteSummary } = useSummary(activeModuleId)
   const toast = useToast()
 
-  // ── Setup ─────────────────────────────────────────────────────────────────
+  // Back from the create screen: open the summary that was just made, otherwise refresh the list.
+  const isFocused = useIsFocused()
+  React.useEffect(() => {
+    if (!isFocused || summary) return
+    const id = takePendingSummary()
+    if (id) openSummary(id)
+    else refreshSummaries()
+  }, [isFocused]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Summary list ──────────────────────────────────────────────────────────
   if (!summary) {
+    const ACCENTS = [
+      { fg: C.sumColor,   bg: C.sumBg   },
+      { fg: C.chatColor,  bg: C.chatBg  },
+      { fg: C.flashColor, bg: C.flashBg },
+      { fg: C.quizColor,  bg: C.quizBg  },
+    ]
+    const when = (iso: string) =>
+      iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : ''
+
     return (
       <StyledPage flex={1} backgroundColor={C.bg} showStatusBar
         statusBarStyle={isDark ? 'light-content' : 'dark-content'}
         statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
       >
-        <ScreenHeader title="AI Summary" subtitle="Understand your material" onBackPress={() => router.back()} />
-        <StyledScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+        <ScreenHeader title="Summaries" onBackPress={() => router.back()} />
 
-          {!activeModuleId ? (
+        {!activeModuleId ? (
+          <Stack padding={20}>
             <EmptyState
               icon="clipboard"
               title="No module selected"
-              subtitle="Open a module first, then generate a structured summary."
+              subtitle="Open a module first, then create a structured summary."
               action={{ label: 'Browse modules', onPress: () => router.push('/(tabs)/modules' as any) }}
             />
-          ) : (
-            <>
-              {/* Module banner */}
-              <StyledCard backgroundColor={C.sumBg} borderRadius={18} padding={16} marginBottom={24}
-                style={{ borderWidth: 1, borderColor: `${C.sumColor}30` }}
-              >
-                <Stack horizontal alignItems="center" gap={12}>
-                  <Stack
-                    width={46} height={46} borderRadius={13}
-                    backgroundColor={`${C.sumColor}20`} alignItems="center" justifyContent="center"
-                  >
-                    <Feather name="clipboard" size={20} color={C.sumColor} />
-                  </Stack>
-                  <Stack flex={1}>
-                    <Text variant="overline" color={C.sumColor}>Summarising</Text>
-                    <Text variant="label" color={C.textPrimary} fontWeight="700" numberOfLines={1}>
-                      {activeCourseCode} — {activeModuleTitle}
-                    </Text>
-                  </Stack>
-                </Stack>
-              </StyledCard>
-
-              {/* Scope options */}
-              <Text variant="label" color={C.textPrimary} fontWeight="700" marginBottom={10}>
-                Summary scope
+          </Stack>
+        ) : (
+          <>
+            <StyledScrollView showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ padding: 20, paddingBottom: 110 }}
+            >
+              <Text variant="caption" color={C.textSecondary} style={{ marginBottom: 14 }}>
+                {activeCourseCode ? `${activeCourseCode} · ` : ''}{activeModuleTitle}
               </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 8 }}
-                style={{ marginBottom: 24, flexGrow: 0 }}
-              >
-                {SCOPE_OPTIONS.map(({ key, label, icon }) => {
-                  const active = scope === key
-                  return (
-                    <StyledPressable key={key} onPress={() => setScope(key)}>
-                      <Stack
-                        horizontal alignItems="center" gap={7}
-                        backgroundColor={active ? C.sumBg : C.bgCard}
-                        borderRadius={50} paddingHorizontal={16} paddingVertical={10}
-                        style={{ borderWidth: 1.5, borderColor: active ? C.sumColor : C.border }}
-                      >
-                        <Feather name={icon} size={14} color={active ? C.sumColor : C.textSecondary} />
-                        <Text variant="label"
-                          color={active ? C.sumColor : C.textSecondary}
-                          fontWeight={active ? '700' : '500'}
-                        >{label}</Text>
-                      </Stack>
-                    </StyledPressable>
-                  )
-                })}
-              </ScrollView>
 
-              {/* Previous summaries */}
-              {summaries.length > 0 && (
-                <>
-                  <Text variant="label" color={C.textPrimary} fontWeight="700" marginBottom={10}>
-                    Previous summaries
+              {loaded && summaries.length === 0 ? (
+                <StyledCard backgroundColor={C.bgCard} borderRadius={20} padding={28}
+                  alignItems="center" gap={10} style={{ borderWidth: 1, borderColor: C.border }}
+                >
+                  <Stack width={64} height={64} borderRadius={20} backgroundColor={C.sumBg} alignItems="center" justifyContent="center">
+                    <Feather name="clipboard" size={28} color={C.sumColor} />
+                  </Stack>
+                  <Text variant="subtitle" color={C.textPrimary} fontWeight="700">No summaries yet</Text>
+                  <Text variant="body" color={C.textSecondary} textAlign="center">
+                    Tap the + button to create a summary from this module's materials.
                   </Text>
-                  <Stack gap={8} marginBottom={24}>
-                    {summaries.slice(0, 3).map((s: any) => (
+                </StyledCard>
+              ) : (
+                <Stack gap={12}>
+                  {summaries.map((s: any, i: number) => {
+                    const acc   = ACCENTS[i % ACCENTS.length]
+                    const title = summaryTitle(s.scope)
+                    const preview = summaryPreview(s.content || '')
+                    return (
                       <StyledPressable key={s.id} onPress={() => openSummary(s.id)}>
-                        <StyledCard backgroundColor={C.bgCard} borderRadius={14} padding={14}
+                        <StyledCard backgroundColor={C.bgCard} borderRadius={18} padding={16}
                           style={{ borderWidth: 1, borderColor: C.border }}
                         >
-                          <Stack horizontal alignItems="center" gap={12}>
-                            <Stack
-                              width={40} height={40} borderRadius={11}
-                              backgroundColor={C.sumBg} alignItems="center" justifyContent="center"
-                            >
-                              <Feather name="clipboard" size={16} color={C.sumColor} />
+                          <Stack horizontal alignItems="center" gap={14}>
+                            <Stack width={48} height={48} borderRadius={14} backgroundColor={acc.bg} alignItems="center" justifyContent="center">
+                              <Feather name="clipboard" size={21} color={acc.fg} />
                             </Stack>
-                            <Stack flex={1} gap={3}>
-                              <Text variant="label" color={C.textPrimary} fontWeight="600">
-                                {s.scope.charAt(0).toUpperCase() + s.scope.slice(1)} summary
-                              </Text>
-                              <Text variant="caption" color={C.textSecondary}>
-                                {s.source_doc_count} sources · {new Date(s.created_at).toLocaleDateString()}
+                            <Stack flex={1} gap={4}>
+                              <Text variant="label" color={C.textPrimary} fontWeight="700" numberOfLines={1}>{title}</Text>
+                              {!!preview && (
+                                <Text variant="caption" color={C.textSecondary} numberOfLines={2} style={{ lineHeight: 17 }}>{preview}</Text>
+                              )}
+                              <Text variant="caption" color={C.textMuted} numberOfLines={1}>
+                                {s.source_doc_count} sources · {when(s.created_at)}
                               </Text>
                             </Stack>
-                            <Text style={{ fontSize: 16, color: C.textMuted }}>›</Text>
+                            <StyledPressable hitSlop={10} onPress={() => deleteSummary(s, title)}>
+                              <Feather name="trash-2" size={16} color={C.textMuted} />
+                            </StyledPressable>
                           </Stack>
                         </StyledCard>
                       </StyledPressable>
-                    ))}
-                  </Stack>
-                </>
-              )}
-
-              {/* Topic */}
-              <Stack gap={8} marginBottom={24}>
-                <Text variant="label" color={C.textPrimary} fontWeight="700">
-                  Topic (optional)
-                </Text>
-                <Stack
-                  backgroundColor={C.bgInput} borderRadius={14}
-                  borderWidth={1} borderColor={C.border}
-                  paddingHorizontal={16} paddingVertical={12}
-                >
-                  <TextInput
-                    value={topic}
-                    onChangeText={setTopic}
-                    placeholder="e.g. Python data types, React Native hooks, TypeScript generics"
-                    placeholderTextColor={C.textMuted}
-                    style={{
-                      color:      C.textPrimary,
-                      fontSize:   14,
-                      fontFamily: 'PlusJakartaSans_400Regular',
-                    }}
-                  />
+                    )
+                  })}
                 </Stack>
-                <Text variant="caption" color={C.textSecondary}>
-                  Leave blank to cover all topics in this module
-                </Text>
-              </Stack>
+              )}
+            </StyledScrollView>
 
-              <StyledButton
-                backgroundColor={C.sumColor} borderRadius={16} paddingVertical={17}
-                loading={generating} onPress={() => generate(scope, topic || undefined)}
-                style={{
-                  shadowColor: C.sumColor, shadowOpacity: 0.4,
-                  shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 8,
-                }}
-              >
-                <Text variant="button" color={C.white}>
-                  {generating ? 'Generating summary…' : 'Generate AI summary'}
-                </Text>
-              </StyledButton>
-            </>
-          )}
-        </StyledScrollView>
+            {/* Create button */}
+            <StyledPressable
+              onPress={() => router.push('/summary/create' as any)}
+              width={58} height={58} borderRadius={29}
+              backgroundColor={C.sumColor} alignItems="center" justifyContent="center"
+              style={{
+                position: 'absolute', right: 20, bottom: Platform.OS === 'ios' ? 34 : 22,
+                shadowColor: C.sumColor, shadowOpacity: 0.4, shadowRadius: 12,
+                shadowOffset: { width: 0, height: 6 }, elevation: 8,
+              }}
+            >
+              <Feather name="plus" size={26} color={C.white} />
+            </StyledPressable>
+          </>
+        )}
       </StyledPage>
     )
   }
@@ -219,70 +182,40 @@ export default function SummaryScreen() {
       statusBarStyle={isDark ? 'light-content' : 'dark-content'}
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >
-      <ScreenHeader
-        title="AI Summary"
-        subtitle={`${activeCourseCode || ''} · ${summary.scope}`}
-        onBackPress={closeSummary}
-        rightIcon={
-          <Stack
-            backgroundColor={C.sumBg} borderRadius={10}
-            paddingHorizontal={10} paddingVertical={5}
-          >
-            <Text variant="caption" color={C.sumColor} fontWeight="700">
-              {summary.source_doc_count} sources
-            </Text>
-          </Stack>
-        }
-      />
+      <ScreenHeader title="Summary" onBackPress={closeSummary} />
 
       <StyledScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
 
-        {/* Header card */}
-        <Stack
-          backgroundColor={C.navy} borderRadius={22} padding={22} marginBottom={20}
-          style={{
-            overflow: 'hidden',
-            shadowColor: '#0d0d1a', shadowOpacity: 0.25,
-            shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 10,
-          }}
-        >
-          <Stack
-            position="absolute" top={-80} right={-60} width={220} height={220}
-            borderRadius={999} backgroundColor="rgba(245,158,11,0.08)" pointerEvents="none"
-          />
-          <Stack
-            position="absolute" bottom={-60} left={-40} width={180} height={180}
-            borderRadius={999} backgroundColor="rgba(91,127,255,0.06)" pointerEvents="none"
-          />
-          <Text variant="overline" color="rgba(255,255,255,0.45)" marginBottom={8}>
-            AI Generated Summary
-          </Text>
-          <Text variant="title" color="#FFFFFF" fontWeight="800">
-            {activeCourseCode} — {summary.scope.charAt(0).toUpperCase() + summary.scope.slice(1)} Overview
-          </Text>
-          <Stack horizontal gap={8} marginTop={16} flexWrap="wrap">
-            <Stack
-              backgroundColor="rgba(245,158,11,0.2)" borderRadius={8}
-              paddingHorizontal={10} paddingVertical={5}
-            >
-              <Text variant="caption" color="#FCD34D" fontWeight="600">
-                {summary.source_doc_count} documents
-              </Text>
-            </Stack>
-            <Stack
-              backgroundColor="rgba(91,127,255,0.2)" borderRadius={8}
-              paddingHorizontal={10} paddingVertical={5}
-            >
-              <Text variant="caption" color="#A3BFFF" fontWeight="600">
-                {sections.length} sections
-              </Text>
-            </Stack>
+        {/* Counts */}
+        <Stack horizontal gap={10} marginBottom={20}>
+          <Stack horizontal alignItems="center" gap={7} backgroundColor={C.sumBg}
+            borderRadius={100} paddingHorizontal={14} paddingVertical={8}
+          >
+            <Feather name="file-text" size={14} color={C.sumColor} />
+            <Text variant="caption" color={C.sumColor} fontWeight="700">
+              {summary.source_doc_count} {summary.source_doc_count === 1 ? 'document' : 'documents'}
+            </Text>
+          </Stack>
+          <Stack horizontal alignItems="center" gap={7} backgroundColor={C.chatBg}
+            borderRadius={100} paddingHorizontal={14} paddingVertical={8}
+          >
+            <Feather name="layers" size={14} color={C.chatColor} />
+            <Text variant="caption" color={C.chatColor} fontWeight="700">
+              {sections.length} {sections.length === 1 ? 'section' : 'sections'}
+            </Text>
           </Stack>
         </Stack>
 
         {/* Sections */}
         <Stack gap={12}>
-          {sections.map((section, idx) => (
+          {sections.map((section, idx) => {
+            const accent = [
+              { fg: C.chatColor,  bg: C.chatBg  },
+              { fg: C.quizColor,  bg: C.quizBg  },
+              { fg: C.flashColor, bg: C.flashBg },
+              { fg: C.sumColor,   bg: C.sumBg   },
+            ][idx % 4]
+            return (
             <StyledCard key={idx} backgroundColor={C.bgCard} borderRadius={20} padding={18}
               style={{ borderWidth: 1, borderColor: C.border }}
             >
@@ -290,9 +223,9 @@ export default function SummaryScreen() {
               <Stack horizontal alignItems="center" gap={12} marginBottom={16}>
                 <Stack
                   width={40} height={40} borderRadius={12}
-                  backgroundColor={C.sumBg} alignItems="center" justifyContent="center"
+                  backgroundColor={accent.bg} alignItems="center" justifyContent="center"
                 >
-                  <Feather name={section.icon} size={17} color={C.sumColor} />
+                  <Feather name={section.icon} size={17} color={accent.fg} />
                 </Stack>
                 <Text variant="subtitle" color={C.textPrimary} fontWeight="700">
                   {section.heading}
@@ -307,12 +240,12 @@ export default function SummaryScreen() {
                   const hasTerm      = isDefinition && colonIdx > 0 && colonIdx < 40
 
                   return (
-                    <Stack key={i} horizontal gap={10} alignItems="flex-start">
+                    <Stack key={i} horizontal gap={10} alignItems="center">
                       {!isDefinition && (
                         <Stack
                           width={6} height={6} borderRadius={3}
-                          backgroundColor={C.sumColor}
-                          style={{ marginTop: 8, flexShrink: 0 }}
+                          backgroundColor={accent.fg}
+                          style={{ flexShrink: 0 }}
                         />
                       )}
                       {hasTerm ? (
@@ -334,16 +267,17 @@ export default function SummaryScreen() {
                 })}
               </Stack>
             </StyledCard>
-          ))}
+            )
+          })}
         </Stack>
 
-        {/* Regenerate */}
+        {/* Back to the list */}
         <StyledButton
           backgroundColor={C.bgCard} borderRadius={16} paddingVertical={15} marginTop={20}
           borderWidth={1} borderColor={C.border}
           onPress={closeSummary}
         >
-          <Text variant="button" color={C.textPrimary}>↺ New summary</Text>
+          <Text variant="button" color={C.textPrimary}>Back to summaries</Text>
         </StyledButton>
 
         <Stack horizontal gap={10} marginTop={10}>

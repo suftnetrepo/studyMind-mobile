@@ -11,7 +11,9 @@ import { router } from 'expo-router'
 import {
   useToast, useDialogue, useNotification, useLoader,
 } from 'fluent-styles'
-import { useAuthStore, useModuleStore } from '../stores'
+import { useAuthStore, useModuleStore, usePremiumStore } from '../stores'
+import { identifyUser } from '../services/premiumService'
+import { quotaGate, incrementQuota } from '../utils/quota'
 import {
   authService, moduleService, chatService,
   quizService, flashcardService, summaryService,
@@ -35,8 +37,6 @@ export function useAuth() {
       setTokens(res.access_token, res.refresh_token)
       const me = await authService.me() as any
       setUser(me)
-      const stored = useAuthStore.getState().accessToken
-      console.log('Token stored:', !!stored)
       toast.success('Welcome back!', `Signed in as ${me.full_name}`)
       router.replace('/(tabs)')
       return true
@@ -90,10 +90,35 @@ export function useAuth() {
       try { await authService.logout(refreshToken) } catch {}
     }
     storeLogout()
+    identifyUser(null).catch(() => {})
+    usePremiumStore.getState().setEntitlement(false, null)
     router.replace('/auth/login')
   }
 
-  return { login, register, logout, loading }
+  const deleteAccount = async () => {
+    const ok = await dialogue.confirm({
+      title:        'Delete your account?',
+      message:      'This permanently deletes your account, courses, documents, chats, quizzes, flashcards and notes progress. This cannot be undone.',
+      icon:         '⚠️',
+      confirmLabel: 'Delete account',
+      cancelLabel:  'Cancel',
+      destructive:  true,
+    })
+    if (!ok) return
+    try {
+      await authService.deleteMe()
+    } catch (e: any) {
+      toast.error('Could not delete account', e.message || 'Please try again.')
+      return
+    }
+    storeLogout()
+    identifyUser(null).catch(() => {})
+    usePremiumStore.getState().setEntitlement(false, null)
+    toast.success('Account deleted', 'Your data has been removed.')
+    router.replace('/auth/login')
+  }
+
+  return { login, register, logout, deleteAccount, loading }
 }
 
 // ─── useModules ───────────────────────────────────────────────────────────────
@@ -103,8 +128,9 @@ export function useModules() {
   const [error,   setError]   = useState<string | null>(null)
   const toast = useToast()
 
-  const fetch = useCallback(async () => {
-    setLoading(true)
+  // `silent` skips the loading skeleton so focus/pull refreshes don't flicker.
+  const fetch = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     setError(null)
     try {
       const res = await moduleService.list()
@@ -122,7 +148,7 @@ export function useModules() {
   const enrol = async (moduleId: string) => {
     try {
       await moduleService.enrol(moduleId)
-      await fetch()
+      await fetch(true)
       toast.success('Enrolled!', 'You now have access to this module.')
       return true
     } catch (e: any) {
@@ -195,8 +221,8 @@ export function useModuleDetail(moduleId: string | null) {
   const deleteDocument = async (documentId: string, filename: string) => {
     if (!moduleId) return false
     const ok = await dialogue.confirm({
-      title:        'Delete note?',
-      message:      `"${filename}" will be permanently removed.`,
+      title:        'Delete document?',
+      message:      `"${filename}" and its indexed content will be permanently removed. The AI will no longer use it.`,
       icon:         '🗑️',
       confirmLabel: 'Delete',
       cancelLabel:  'Cancel',
@@ -205,7 +231,7 @@ export function useModuleDetail(moduleId: string | null) {
     if (!ok) return false
     try {
       await moduleService.deleteDocument(moduleId, documentId)
-      toast.success('Deleted', 'Your note has been removed.')
+      toast.success('Deleted', 'The document has been removed.')
       await fetch()
       return true
     } catch (e: any) {
@@ -214,7 +240,28 @@ export function useModuleDetail(moduleId: string | null) {
     }
   }
 
-  return { module, documents, sessions, loading, error: null, refetch: fetch, uploadDocument, deleteDocument }
+  const deleteSession = async (sessionId: string, title: string) => {
+    const ok = await dialogue.confirm({
+      title:        'Delete conversation?',
+      message:      `"${title || 'This conversation'}" and all its messages will be permanently removed.`,
+      icon:         '🗑️',
+      confirmLabel: 'Delete',
+      cancelLabel:  'Cancel',
+      destructive:  true,
+    })
+    if (!ok) return false
+    try {
+      await chatService.deleteSession(sessionId)
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId))
+      toast.success('Deleted', 'The conversation has been removed.')
+      return true
+    } catch (e: any) {
+      toast.error('Could not delete', e.message)
+      return false
+    }
+  }
+
+  return { module, documents, sessions, loading, error: null, refetch: fetch, uploadDocument, deleteDocument, deleteSession }
 }
 
 // ─── useChat ──────────────────────────────────────────────────────────────────
@@ -250,6 +297,7 @@ export function useChat(moduleId?: string | null) {
 
   const send = async (text: string) => {
     if (!text.trim() || sending) return
+    if (!(await quotaGate('chat'))) return
     setSending(true)
 
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: text }
@@ -261,6 +309,7 @@ export function useChat(moduleId?: string | null) {
         text, moduleId || undefined, sessionId || undefined, scopeMode, complexity,
       )
       if (!sessionId) setSessionId(res.session_id)
+      await incrementQuota('chat')
       const botMsg: ChatMessage = {
         id:      res.message_id,
         role:    'assistant',
@@ -309,12 +358,14 @@ export function useGeneralChat() {
 
   const send = async (text: string) => {
     if (!text.trim() || sending) return
+    if (!(await quotaGate('general_chat'))) return
     setSending(true)
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: text }
     const loadingMsg: ChatMessage = { id: 'loading', role: 'assistant', content: '', loading: true }
     setMessages((prev) => [...prev, userMsg, loadingMsg])
     try {
       const res = await chatService.sendGeneral(text, sessionId || undefined, complexity)
+      await incrementQuota('general_chat')
       if (!sessionId) setSessionId(res.session_id)
       const botMsg: ChatMessage = { id: res.message_id, role: 'assistant', content: res.answer }
       setMessages((prev) => [...prev.filter((m) => m.id !== 'loading'), botMsg])
@@ -330,11 +381,11 @@ export function useGeneralChat() {
 }
 
 // ─── useQuiz ──────────────────────────────────────────────────────────────────
-export type QuizPhase = 'setup' | 'taking' | 'results'
+export type QuizPhase = 'list' | 'taking' | 'results'
 export type QType = 'mcq' | 'true_false'
 
 export function useQuiz(moduleId?: string | null) {
-  const [phase,      setPhase]      = useState<QuizPhase>('setup')
+  const [phase,      setPhase]      = useState<QuizPhase>('list')
   const [attempt,    setAttempt]    = useState<any>(null)
   const [answers,    setAnswers]    = useState<Record<string, string>>({})
   const [currentIdx, setCurrentIdx] = useState(0)
@@ -342,6 +393,7 @@ export function useQuiz(moduleId?: string | null) {
   const [generating, setGenerating] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [history,    setHistory]    = useState<any[]>([])
+  const [historyLoaded, setHistoryLoaded] = useState(false)
 
   const toast        = useToast()
   const dialogue     = useDialogue()
@@ -354,6 +406,7 @@ export function useQuiz(moduleId?: string | null) {
       const res = await quizService.history(moduleId)
       setHistory(res)
     } catch {}
+    setHistoryLoaded(true)
   }, [moduleId])
 
   useEffect(() => { loadHistory() }, [loadHistory])
@@ -361,18 +414,23 @@ export function useQuiz(moduleId?: string | null) {
   const generate = async (questionCount: number, questionType: QType, topic?: string) => {
     if (!moduleId) {
       toast.warning('No module selected', 'Open a module before generating a quiz.')
-      return
+      return false
     }
+    if (!(await quotaGate('quiz'))) return false
+    let ok = false
     setGenerating(true)
     const loadId = loader.show({ label: 'Generating quiz…', variant: 'dots' })
     try {
       const title = topic ? `${topic} Quiz` : 'Module Quiz'
       const res = await quizService.generate(moduleId, questionCount, questionType, title, topic)
+      await incrementQuota('quiz')
       setAttempt(res)
       setAnswers({})
       setCurrentIdx(0)
       setResults(null)
       setPhase('taking')
+      loadHistory()
+      ok = true
       notification.show({
         title:    'Quiz ready!',
         body:     `${res.questions.length} questions generated from your materials.`,
@@ -387,10 +445,59 @@ export function useQuiz(moduleId?: string | null) {
       loader.hide(loadId)
       setGenerating(false)
     }
+    return ok
   }
 
   const answer = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }))
+    // Save as you go so the quiz can be resumed after leaving the screen.
+    if (attempt) quizService.saveProgress(attempt.id, [{ question_id: questionId, answer: value }]).catch(() => {})
+  }
+
+  const openAttempt = async (item: any) => {
+    const loadId = loader.show({ label: 'Opening quiz…', variant: 'dots' })
+    try {
+      const res = await quizService.get(item.id)
+      setAttempt(res)
+      if (res.status === 'submitted') {
+        setResults({
+          attempt_id: res.id, score: res.score ?? 0, total: res.questions.length,
+          correct: res.questions.filter((q: any) => q.is_correct).length, questions: res.questions,
+        })
+        setPhase('results')
+      } else {
+        const restored: Record<string, string> = {}
+        res.questions.forEach((q: any) => { if (q.student_answer) restored[q.id] = q.student_answer })
+        const firstOpen = res.questions.findIndex((q: any) => !restored[q.id])
+        setAnswers(restored)
+        setCurrentIdx(firstOpen >= 0 ? firstOpen : 0)
+        setResults(null)
+        setPhase('taking')
+      }
+    } catch (e: any) {
+      toast.error('Could not open quiz', e.message)
+    } finally {
+      loader.hide(loadId)
+    }
+  }
+
+  const deleteAttempt = async (item: any) => {
+    const ok = await dialogue.confirm({
+      title:        'Delete quiz?',
+      message:      `"${item.title}" and your answers will be permanently removed.`,
+      icon:         '🗑️',
+      confirmLabel: 'Delete',
+      cancelLabel:  'Cancel',
+      destructive:  true,
+    })
+    if (!ok) return
+    try {
+      await quizService.remove(item.id)
+      setHistory((prev) => prev.filter((h) => h.id !== item.id))
+      toast.success('Deleted', 'The quiz has been removed.')
+    } catch (e: any) {
+      toast.error('Could not delete', e.message)
+    }
   }
 
   const next = () => {
@@ -442,23 +549,17 @@ export function useQuiz(moduleId?: string | null) {
     }
   }
 
+  // Back to the quiz list. In-progress answers are already saved, so nothing is lost.
   const reset = async () => {
     if (phase === 'taking' && Object.keys(answers).length > 0) {
-      const ok = await dialogue.confirm({
-        title:        'Abandon quiz?',
-        message:      'Your answers will be lost.',
-        icon:         '⚠️',
-        confirmLabel: 'Abandon',
-        cancelLabel:  'Keep going',
-        destructive:  true,
-      })
-      if (!ok) return
+      toast.info('Progress saved', 'Continue this quiz any time from your list.')
     }
-    setPhase('setup')
+    setPhase('list')
     setAttempt(null)
     setAnswers({})
     setCurrentIdx(0)
     setResults(null)
+    loadHistory()
   }
 
   const currentQuestion = attempt?.questions?.[currentIdx] ?? null
@@ -469,8 +570,8 @@ export function useQuiz(moduleId?: string | null) {
   return {
     phase, attempt, answers, currentQuestion, currentIdx,
     totalQuestions, progress, answered,
-    results, generating, submitting, history,
-    generate, answer, next, prev, submit, reset,
+    results, generating, submitting, history, historyLoaded, refreshHistory: loadHistory,
+    generate, answer, next, prev, submit, reset, openAttempt, deleteAttempt,
   }
 }
 
@@ -482,6 +583,8 @@ export function useFlashcards(moduleId?: string | null) {
   const [flipped,    setFlipped]    = useState(false)
   const [generating, setGenerating] = useState(false)
   const [updating,   setUpdating]   = useState(false)
+  const [decksLoaded, setDecksLoaded] = useState(false)
+  const dialogue = useDialogue()
 
   const toast        = useToast()
   const loader       = useLoader()
@@ -493,6 +596,7 @@ export function useFlashcards(moduleId?: string | null) {
       const res = await flashcardService.list(moduleId)
       setDecks(res)
     } catch {}
+    setDecksLoaded(true)
   }, [moduleId])
 
   useEffect(() => { loadDecks() }, [loadDecks])
@@ -502,10 +606,12 @@ export function useFlashcards(moduleId?: string | null) {
       toast.warning('No module selected', 'Open a module first.')
       return
     }
+    if (!(await quotaGate('flashcard'))) return
     setGenerating(true)
     const loadId = loader.show({ label: 'Generating flashcards…', variant: 'dots' })
     try {
       const res = await flashcardService.generate(moduleId, maxCards, topic)
+      await incrementQuota('flashcard')
       setDeck(res)
       setCardIdx(0)
       setFlipped(false)
@@ -581,7 +687,8 @@ export function useFlashcards(moduleId?: string | null) {
     try {
       const res = await flashcardService.getDeck(deckId)
       setDeck(res)
-      setCardIdx(0)
+      const firstOpen = res.cards.findIndex((c: any) => c.status !== 'mastered')
+      setCardIdx(firstOpen >= 0 ? firstOpen : 0)
       setFlipped(false)
     } catch (e: any) {
       toast.error('Could not load deck', e.message)
@@ -590,7 +697,26 @@ export function useFlashcards(moduleId?: string | null) {
     }
   }
 
-  const closeDeck = () => { setDeck(null); setCardIdx(0); setFlipped(false) }
+  const closeDeck = () => { setDeck(null); setCardIdx(0); setFlipped(false); loadDecks() }
+
+  const deleteDeck = async (d: any) => {
+    const ok = await dialogue.confirm({
+      title:        'Delete flashcards?',
+      message:      `"${d.title}" and your progress will be permanently removed.`,
+      icon:         '🗑️',
+      confirmLabel: 'Delete',
+      cancelLabel:  'Cancel',
+      destructive:  true,
+    })
+    if (!ok) return
+    try {
+      await flashcardService.remove(d.id)
+      setDecks((prev) => prev.filter((x) => x.id !== d.id))
+      toast.success('Deleted', 'The deck has been removed.')
+    } catch (e: any) {
+      toast.error('Could not delete', e.message)
+    }
+  }
 
   const currentCard   = deck?.cards?.[cardIdx] ?? null
   const masteredCount = deck?.mastered_count ?? 0
@@ -600,8 +726,8 @@ export function useFlashcards(moduleId?: string | null) {
   return {
     deck, decks, cardIdx, flipped, currentCard,
     masteredCount, totalCards, progressPct,
-    generating, updating,
-    generate, flip, prevCard, nextCard, updateCard, openDeck, closeDeck,
+    generating, updating, decksLoaded, refreshDecks: loadDecks,
+    generate, flip, prevCard, nextCard, updateCard, openDeck, closeDeck, deleteDeck,
   }
 }
 
@@ -612,6 +738,8 @@ export function useSummary(moduleId?: string | null) {
   const [summary,    setSummary]    = useState<any>(null)
   const [summaries,  setSummaries]  = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
+  const [loaded,     setLoaded]     = useState(false)
+  const dialogue = useDialogue()
 
   const toast        = useToast()
   const loader       = useLoader()
@@ -623,6 +751,7 @@ export function useSummary(moduleId?: string | null) {
       const res = await summaryService.list(moduleId)
       setSummaries(res)
     } catch {}
+    setLoaded(true)
   }, [moduleId])
 
   useEffect(() => { loadSummaries() }, [loadSummaries])
@@ -632,10 +761,12 @@ export function useSummary(moduleId?: string | null) {
       toast.warning('No module selected', 'Open a module first.')
       return
     }
+    if (!(await quotaGate('summary'))) return
     setGenerating(true)
     const loadId = loader.show({ label: 'Generating summary…', variant: 'dots' })
     try {
       const res = await summaryService.generate(moduleId, scope, topic)
+      await incrementQuota('summary')
       setSummary(res)
       await loadSummaries()
       notification.show({
@@ -666,7 +797,31 @@ export function useSummary(moduleId?: string | null) {
     }
   }
 
-  const closeSummary = () => setSummary(null)
+  const closeSummary = () => { setSummary(null); loadSummaries() }
 
-  return { summary, summaries, generating, generate, openSummary, closeSummary }
+  const deleteSummary = async (item: any, title: string) => {
+    const ok = await dialogue.confirm({
+      title:        'Delete summary?',
+      message:      `"${title}" will be permanently removed.`,
+      icon:         '🗑️',
+      confirmLabel: 'Delete',
+      cancelLabel:  'Cancel',
+      destructive:  true,
+    })
+    if (!ok) return
+    try {
+      await summaryService.remove(item.id)
+      setSummaries((prev) => prev.filter((x) => x.id !== item.id))
+      toast.success('Deleted', 'The summary has been removed.')
+    } catch (e: any) {
+      toast.error('Could not delete', e.message)
+    }
+  }
+
+  return {
+    summary, summaries, generating, loaded, refreshSummaries: loadSummaries,
+    generate, openSummary, closeSummary, deleteSummary,
+  }
 }
+
+export { usePremium } from './usePremium'

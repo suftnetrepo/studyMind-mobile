@@ -15,6 +15,7 @@ import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { RichText, preprocessMath } from '../../src/components/RichText'
 import { useColors, useIsDark } from '../../src/constants'
 import { shareText } from '../../src/utils/share'
+import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { writingService, chatService } from '../../src/services/api'
 
 type WritingMode = 'general' | 'outline' | 'essay' | 'modify'
@@ -80,6 +81,7 @@ export default function WritingAssistantScreen() {
       toast.warning('Enter some text', 'Type your topic or paste text to get started.')
       return
     }
+    if (!(await quotaGate('smart_writer'))) return
     setGenerating(true)
     setResult('')
     const loadId = loader.show({ label: 'Writing…', variant: 'dots' })
@@ -95,6 +97,7 @@ export default function WritingAssistantScreen() {
         paragraphs:  mode === 'essay'   ? paragraphs  : undefined,
         modify_type: mode === 'modify'  ? modifyType  : undefined,
       })
+      await incrementQuota('smart_writer')
       setResult(res.content)
       setSheetOpen(true)
     } catch (e: any) {
@@ -122,11 +125,13 @@ export default function WritingAssistantScreen() {
         ? await ImagePicker.launchCameraAsync(options)
         : await ImagePicker.launchImageLibraryAsync(options)
       if (res.canceled || !res.assets[0]?.base64) return
+      if (!(await quotaGate('scan_image'))) return
       const asset  = res.assets[0]
       const loadId = loader.show({ label: 'Reading image…', variant: 'dots' })
       setBusy(true)
       try {
         const { text } = await chatService.extractFromImage(asset.base64!, asset.mimeType || 'image/jpeg')
+        await incrementQuota('scan_image')
         if (!text?.trim()) toast.warning('No text found', 'Try again with the text in clear view.')
         else appendInput(text)
       } finally {
@@ -190,7 +195,7 @@ export default function WritingAssistantScreen() {
   }
 
   const Label = ({ children }: { children: string }) => (
-    <Text variant="label" color={C.textPrimary} fontWeight="700">{children}</Text>
+    <Text paddingHorizontal={8} variant="label" color={C.textMuted} >{children}</Text>
   )
 
   const Pill = ({ value, current, onPress }: { value: string; current: string; onPress: () => void }) => {
@@ -269,7 +274,7 @@ export default function WritingAssistantScreen() {
 
       <Stack
         horizontal backgroundColor={C.bgCard} borderRadius={24} padding={4}
-        marginHorizontal={16} marginTop={4} marginBottom={4}
+        marginHorizontal={16} marginTop={8} marginBottom={4}
         style={{ borderWidth: 1, borderColor: C.border }}
       >
         {MODES.map((m) => {
@@ -406,8 +411,8 @@ export default function WritingAssistantScreen() {
 
           {mode === 'modify' && (
             <Stack marginBottom={20} gap={4}>
-              <Text variant="subtitle" color={C.textPrimary} fontWeight="800">Modification Type</Text>
-              <Text variant="bodySmall" color={C.textSecondary} style={{ marginBottom: 10 }}>
+             
+              <Text paddingHorizontal={16} variant="bodySmall" color={C.textSecondary} style={{ marginBottom: 10 }}>
                 Choose how you'd like to modify your text.
               </Text>
               <Stack gap={10}>

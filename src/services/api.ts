@@ -4,7 +4,8 @@ import { useAuthStore } from '../stores'
 // Local dev: 'http://localhost:8000'  (simulator)
 // Physical device on same WiFi: 'http://192.168.x.x:8000'
 // Production: 'https://your-domain.com'
-export const API_BASE = 'http://localhost:8000'
+// Override without editing code: EXPO_PUBLIC_API_URL=http://192.168.x.x:8000
+export const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000'
 
 class ApiClient {
   private base: string
@@ -177,6 +178,8 @@ export const authService = {
   register: (email: string, password: string, full_name: string, role: string) =>
     api.post('/api/auth/register', { email, password, full_name, role }),
   me:       () => api.get('/api/auth/me'),
+  deleteMe: () => api.delete('/api/auth/me'),
+  updateMe: (full_name: string) => api.patch<any>('/api/auth/me', { full_name }),
   logout:   (refresh_token: string) => api.post('/api/auth/logout', { refresh_token }),
 }
 
@@ -197,6 +200,9 @@ export const moduleService = {
     ),
   enrolByCode: (enrolmentCode: string) =>
     api.post<any>(`/api/modules/${PLACEHOLDER_MODULE_ID}/enrol`, { enrolment_code: enrolmentCode }),
+  deleteModule: (moduleId: string) => api.delete(`/api/modules/${moduleId}`),
+  archive: (moduleId: string) => api.post<any>(`/api/modules/${moduleId}/archive`),
+  restore: (moduleId: string) => api.post<any>(`/api/modules/${moduleId}/restore`),
   joinInstitution: (code: string) =>
     api.post<any>('/api/institutions/join', { code }),
   createModule: (title: string, courseCode: string, emoji?: string, accessType: 'personal' | 'class' = 'personal') =>
@@ -250,6 +256,7 @@ export const chatService = {
   sessions:   (moduleId?: string) =>
     api.get<any[]>(`/api/sessions${moduleId ? `?module_id=${moduleId}` : ''}`),
   getSession: (id: string) => api.get<any>(`/api/sessions/${id}`),
+  deleteSession: (id: string) => api.delete(`/api/sessions/${id}`),
 }
 
 // ─── Quiz ─────────────────────────────────────────────────────────────────────
@@ -267,6 +274,9 @@ export const quizService = {
     api.post<any>(`/api/quiz/${id}/submit`, { answers }),
   history: (moduleId?: string) =>
     api.get<any[]>(`/api/quiz/history/list${moduleId ? `?module_id=${moduleId}` : ''}`),
+  saveProgress: (id: string, answers: { question_id: string; answer: string }[]) =>
+    api.patch<any>(`/api/quiz/${id}/progress`, { answers }),
+  remove: (id: string) => api.delete(`/api/quiz/${id}`),
 }
 
 // ─── Flashcards ───────────────────────────────────────────────────────────────
@@ -278,6 +288,7 @@ export const flashcardService = {
   getDeck:    (deckId: string) => api.get<any>(`/api/flashcards/${deckId}`),
   updateCard: (deckId: string, cardId: string, status: 'new' | 'learning' | 'mastered') =>
     api.patch<any>(`/api/flashcards/${deckId}/cards/${cardId}`, { status }),
+  remove:     (deckId: string) => api.delete(`/api/flashcards/${deckId}`),
 }
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
@@ -287,6 +298,7 @@ export const summaryService = {
   list:     (moduleId?: string) =>
     api.get<any[]>(`/api/summarise${moduleId ? `?module_id=${moduleId}` : ''}`),
   get:      (id: string) => api.get<any>(`/api/summarise/${id}`),
+  remove:   (id: string) => api.delete(`/api/summarise/${id}`),
 }
 
 // ─── Writing assistant ────────────────────────────────────────────────────────
@@ -335,4 +347,14 @@ export const activityService = {
 // ─── Onboarding ───────────────────────────────────────────────────────────────
 export const onboardingService = {
   status: () => api.get<{ complete: boolean; role: string; module_count?: number }>('/api/onboarding/status'),
+}
+
+// ─── Quota ────────────────────────────────────────────────────────────────────
+// Free-tier quotas are tracked on the device (src/utils/quota.ts); this only reports account context.
+export const quotaService = {
+  status: () => api.get<{
+    is_pro:              boolean
+    is_institution_user: boolean
+    role:                string
+  }>('/api/quota/status'),
 }

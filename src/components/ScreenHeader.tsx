@@ -55,8 +55,6 @@ export function ScreenHeader({
       titleAlignment="center"
       titleProps={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize, color: C.textPrimary }}
       rightIcon={rightIcon}
-      subtitle={subtitle}
-      subtitleProps={{ fontSize: 12, color: C.textSecondary, fontFamily: 'PlusJakartaSans_400Regular' }}
     />
   )
 }

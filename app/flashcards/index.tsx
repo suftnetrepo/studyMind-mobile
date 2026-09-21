@@ -1,5 +1,5 @@
 import React from 'react'
-import { Platform, TextInput } from 'react-native'
+import { Platform, TextInput, Animated, Easing, ScrollView } from 'react-native'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import {
@@ -13,181 +13,150 @@ import { RichText } from '../../src/components/RichText'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { useFlashcards } from '../../src/hooks'
-
-const CARD_COUNTS = [10, 15, 20, 30] as const
+import { useIsFocused } from '@react-navigation/native'
+import { takePendingDeck } from '../../src/utils/deckBridge'
 
 export default function FlashcardsScreen() {
   const C      = useColors()
   const isDark = useIsDark()
   const { activeModuleId, activeCourseCode, activeModuleTitle } = useModuleStore()
 
-  const [maxCards, setMaxCards] = React.useState(20)
-  const [topic,    setTopic]    = React.useState('')
 
   const {
     deck, decks, cardIdx, flipped, currentCard,
     masteredCount, totalCards, progressPct,
-    generating, updating,
-    generate, flip, prevCard, nextCard, updateCard, openDeck, closeDeck,
+    generating, updating, decksLoaded, refreshDecks,
+    flip, prevCard, nextCard, updateCard, openDeck, closeDeck, deleteDeck,
   } = useFlashcards(activeModuleId)
+
+  // Back from the create screen: open the deck that was just made, otherwise refresh the list.
+  const isFocused = useIsFocused()
+  React.useEffect(() => {
+    if (!isFocused || deck) return
+    const id = takePendingDeck()
+    if (id) openDeck(id)
+    else refreshDecks()
+  }, [isFocused]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 3D flip: 0 = term side, 1 = definition side. Jump back instantly when the card changes so the
+  // next card's definition is never seen mid-flip.
+  const flipAnim = React.useRef(new Animated.Value(0)).current
+  React.useEffect(() => { flipAnim.setValue(0) }, [cardIdx, deck?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    Animated.timing(flipAnim, { toValue: flipped ? 1 : 0, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start()
+  }, [flipped]) // eslint-disable-line react-hooks/exhaustive-deps
+  const frontRotate = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] })
+  const backRotate  = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '360deg'] })
 
   // ── Deck picker / generate ─────────────────────────────────────────────────
   if (!deck) {
+    const ACCENTS = [
+      { fg: C.flashColor, bg: C.flashBg },
+      { fg: C.chatColor,  bg: C.chatBg  },
+      { fg: C.quizColor,  bg: C.quizBg  },
+      { fg: C.sumColor,   bg: C.sumBg   },
+    ]
+    const when = (iso: string) =>
+      iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : ''
+
     return (
       <StyledPage flex={1} backgroundColor={C.bg} showStatusBar
         statusBarStyle={isDark ? 'light-content' : 'dark-content'}
         statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
       >
-        <ScreenHeader title="Flashcards" subtitle="Review key terms" onBackPress={() => router.back()} />
-        <StyledScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+        <ScreenHeader title="Flashcards" onBackPress={() => router.back()} />
 
-          {!activeModuleId ? (
+        {!activeModuleId ? (
+          <Stack padding={20}>
             <EmptyState
               icon="credit-card"
               title="No module selected"
-              subtitle="Open a module first, then generate flashcards from its materials."
+              subtitle="Open a module first, then create flashcards from its materials."
               action={{ label: 'Browse modules', onPress: () => router.push('/(tabs)/modules' as any) }}
             />
-          ) : (
-            <>
-              {/* Module banner */}
-              <StyledCard backgroundColor={C.flashBg} borderRadius={18} padding={16} marginBottom={24}
-                style={{ borderWidth: 1, borderColor: `${C.flashColor}30` }}
-              >
-                <Stack horizontal alignItems="center" gap={12}>
-                  <Stack
-                    width={46} height={46} borderRadius={13}
-                    backgroundColor={`${C.flashColor}20`} alignItems="center" justifyContent="center"
-                  >
-                    <Text style={{ fontSize: 22 }}>🃏</Text>
-                  </Stack>
-                  <Stack flex={1}>
-                    <Text variant="overline" color={C.flashColor}>Generating from</Text>
-                    <Text variant="label" color={C.textPrimary} fontWeight="700" numberOfLines={1}>
-                      {activeCourseCode} — {activeModuleTitle}
-                    </Text>
-                  </Stack>
-                </Stack>
-              </StyledCard>
-
-              {/* Card count */}
-              <Text variant="label" color={C.textPrimary} fontWeight="700" marginBottom={10}>
-                Number of cards
+          </Stack>
+        ) : (
+          <>
+            <StyledScrollView showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ padding: 20, paddingBottom: 110 }}
+            >
+              <Text variant="caption" color={C.textSecondary} style={{ marginBottom: 14 }}>
+                {activeCourseCode ? `${activeCourseCode} · ` : ''}{activeModuleTitle}
               </Text>
-              <Stack horizontal gap={8} marginBottom={24}>
-                {CARD_COUNTS.map((n) => (
-                  <StyledPressable
-                    key={n} flex={1}
-                    backgroundColor={maxCards === n ? C.flashColor : C.bgCard}
-                    borderRadius={12} paddingVertical={13}
-                    borderWidth={1.5} borderColor={maxCards === n ? C.flashColor : C.border}
-                    alignItems="center" onPress={() => setMaxCards(n)}
-                    style={maxCards === n ? {
-                      shadowColor: C.flashColor, shadowOpacity: 0.3,
-                      shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 4,
-                    } : undefined}
-                  >
-                    <Text variant="title"
-                      color={maxCards === n ? C.white : C.textSecondary}
-                      fontWeight="800" style={{ fontSize: 18 }}
-                    >{n}</Text>
-                  </StyledPressable>
-                ))}
-              </Stack>
 
-              {/* Previous decks */}
-              {decks.length > 0 && (
-                <>
-                  <Text variant="label" color={C.textPrimary} fontWeight="700" marginBottom={10}>
-                    Previous decks
+              {decksLoaded && decks.length === 0 ? (
+                <StyledCard backgroundColor={C.bgCard} borderRadius={20} padding={28}
+                  alignItems="center" gap={10} style={{ borderWidth: 1, borderColor: C.border }}
+                >
+                  <Stack width={64} height={64} borderRadius={20} backgroundColor={C.flashBg} alignItems="center" justifyContent="center">
+                    <Feather name="credit-card" size={28} color={C.flashColor} />
+                  </Stack>
+                  <Text variant="subtitle" color={C.textPrimary} fontWeight="700">No flashcards yet</Text>
+                  <Text variant="body" color={C.textSecondary} textAlign="center">
+                    Tap the + button to create a deck from this module's materials.
                   </Text>
-                  <Stack gap={8} marginBottom={24}>
-                    {decks.map((d: any) => (
+                </StyledCard>
+              ) : (
+                <Stack gap={12}>
+                  {decks.map((d: any, i: number) => {
+                    const acc  = ACCENTS[i % ACCENTS.length]
+                    const pct  = d.card_count ? Math.round((d.mastered_count / d.card_count) * 100) : 0
+                    const done = d.card_count > 0 && d.mastered_count >= d.card_count
+                    return (
                       <StyledPressable key={d.id} onPress={() => openDeck(d.id)}>
-                        <StyledCard backgroundColor={C.bgCard} borderRadius={14} padding={14}
+                        <StyledCard backgroundColor={C.bgCard} borderRadius={18} padding={16}
                           style={{ borderWidth: 1, borderColor: C.border }}
                         >
-                          <Stack horizontal alignItems="center" gap={12}>
-                            <Stack
-                              width={40} height={40} borderRadius={11}
-                              backgroundColor={C.flashBg} alignItems="center" justifyContent="center"
-                            >
-                              <Text style={{ fontSize: 18 }}>🃏</Text>
+                          <Stack horizontal alignItems="center" gap={14}>
+                            <Stack width={48} height={48} borderRadius={14} backgroundColor={acc.bg} alignItems="center" justifyContent="center">
+                              <Feather name={done ? 'check-circle' : 'credit-card'} size={21} color={acc.fg} />
                             </Stack>
                             <Stack flex={1} gap={4}>
-                              <Text variant="label" color={C.textPrimary} fontWeight="600"
-                                numberOfLines={1}
-                              >{d.title}</Text>
-                              <Stack horizontal gap={8} alignItems="center">
-                                <Text variant="caption" color={C.textSecondary}>
-                                  {d.card_count} cards
-                                </Text>
-                                <Stack width={3} height={3} borderRadius={2} backgroundColor={C.border} />
-                                <Text variant="caption" color={C.flashColor} fontWeight="600">
-                                  {d.mastered_count}/{d.card_count} mastered
-                                </Text>
-                              </Stack>
-                              {/* Mini progress bar */}
-                              <Stack height={3} backgroundColor={C.bgMuted} borderRadius={2}
-                                style={{ overflow: 'hidden' }}
-                              >
-                                <Stack
-                                  height={3} borderRadius={2} backgroundColor={C.flashColor}
-                                  width={`${d.card_count ? Math.round((d.mastered_count / d.card_count) * 100) : 0}%` as any}
-                                />
+                              <Text variant="label" color={C.textPrimary} fontWeight="700" numberOfLines={1}>{d.title}</Text>
+                              <Text variant="caption" color={C.textSecondary} numberOfLines={1}>
+                                {d.card_count} cards · {d.mastered_count} mastered{d.created_at ? ` · ${when(d.created_at)}` : ''}
+                              </Text>
+                              <Stack horizontal alignItems="center" gap={8} marginTop={2}>
+                                <Stack flex={1} height={5} borderRadius={3} backgroundColor={C.bgMuted} style={{ overflow: 'hidden' }}>
+                                  <Stack height={5} borderRadius={3} backgroundColor={acc.fg} width={`${pct}%` as any} />
+                                </Stack>
+                                <Text variant="caption" color={C.textMuted} style={{ fontSize: 10 }}>{pct}%</Text>
                               </Stack>
                             </Stack>
-                            <Text style={{ fontSize: 16, color: C.textMuted }}>›</Text>
+                            <Stack alignItems="flex-end" gap={8}>
+                              <Stack backgroundColor={acc.bg} borderRadius={10} paddingHorizontal={10} paddingVertical={4}>
+                                <Text variant="caption" color={acc.fg} fontWeight="700">
+                                  {done ? 'Review' : d.mastered_count > 0 ? 'Continue' : 'Study'}
+                                </Text>
+                              </Stack>
+                              <StyledPressable hitSlop={10} onPress={() => deleteDeck(d)}>
+                                <Feather name="trash-2" size={16} color={C.textMuted} />
+                              </StyledPressable>
+                            </Stack>
                           </Stack>
                         </StyledCard>
                       </StyledPressable>
-                    ))}
-                  </Stack>
-                </>
-              )}
-
-              {/* Topic */}
-              <Stack gap={8} marginBottom={24}>
-                <Text variant="label" color={C.textPrimary} fontWeight="700">
-                  Topic (optional)
-                </Text>
-                <Stack
-                  backgroundColor={C.bgInput} borderRadius={14}
-                  borderWidth={1} borderColor={C.border}
-                  paddingHorizontal={16} paddingVertical={12}
-                >
-                  <TextInput
-                    value={topic}
-                    onChangeText={setTopic}
-                    placeholder="e.g. Python data types, React Native hooks, TypeScript generics"
-                    placeholderTextColor={C.textMuted}
-                    style={{
-                      color:      C.textPrimary,
-                      fontSize:   14,
-                      fontFamily: 'PlusJakartaSans_400Regular',
-                    }}
-                  />
+                    )
+                  })}
                 </Stack>
-                <Text variant="caption" color={C.textSecondary}>
-                  Leave blank to cover all topics in this module
-                </Text>
-              </Stack>
+              )}
+            </StyledScrollView>
 
-              <StyledButton
-                backgroundColor={C.flashColor} borderRadius={16} paddingVertical={17}
-                loading={generating} onPress={() => generate(maxCards, topic || undefined)}
-                style={{
-                  shadowColor: C.flashColor, shadowOpacity: 0.4,
-                  shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 8,
-                }}
-              >
-                <Text variant="button" color={C.white}>
-                  {generating ? 'Generating cards…' : `Generate ${maxCards} flashcards`}
-                </Text>
-              </StyledButton>
-            </>
-          )}
-        </StyledScrollView>
+            {/* Create button */}
+            <StyledPressable
+              onPress={() => router.push('/flashcards/create' as any)}
+              width={58} height={58} borderRadius={29}
+              backgroundColor={C.flashColor} alignItems="center" justifyContent="center"
+              style={{
+                position: 'absolute', right: 20, bottom: Platform.OS === 'ios' ? 34 : 22,
+                shadowColor: C.flashColor, shadowOpacity: 0.4, shadowRadius: 12,
+                shadowOffset: { width: 0, height: 6 }, elevation: 8,
+              }}
+            >
+              <Feather name="plus" size={26} color={C.white} />
+            </StyledPressable>
+          </>
+        )}
       </StyledPage>
     )
   }
@@ -231,59 +200,64 @@ export default function FlashcardsScreen() {
           ))}
         </Stack>
 
-        {/* The card — tap to flip */}
+        {/* The card: tap to flip */}
         <StyledPressable onPress={flip}>
-          <Stack
-            backgroundColor={C.bgCard} borderRadius={24}
-            borderWidth={1} borderColor={C.border}
-            padding={32} marginBottom={16}
-            alignItems="center" justifyContent="center"
-            style={{
-              minHeight: 220,
-              shadowColor: '#000', shadowOpacity: 0.06,
-              shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6,
-            }}
-          >
-            {/* Card type label */}
-            <Stack
-              backgroundColor={flipped ? C.quizBg : C.flashBg}
-              borderRadius={10} paddingHorizontal={12} paddingVertical={5}
-              marginBottom={20}
+          <Stack style={{ height: 300, marginBottom: 16 }}>
+            {/* Term side */}
+            <Animated.View
+              style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                backfaceVisibility: 'hidden',
+                transform: [{ perspective: 1200 }, { rotateY: frontRotate }],
+              }}
             >
-              <Text
-                variant="overline"
-                color={flipped ? C.quizColor : C.flashColor}
-                style={{ fontSize: 10 }}
-              >
-                {flipped ? 'DEFINITION' : 'TERM'}
-              </Text>
-            </Stack>
-
-            {flipped ? (
-              <Stack style={{ width: '100%', marginBottom: 16 }}>
-                <RichText content={currentCard?.back || ''} fontSize={13} />
-              </Stack>
-            ) : (
-              <Text
-                variant="title"
-                color={C.textPrimary}
-                fontWeight="700"
-                textAlign="center"
-                style={{ lineHeight: 30, marginBottom: 16 }}
-              >
-                {currentCard?.front}
-              </Text>
-            )}
-
-            <Stack horizontal alignItems="center" gap={6}>
               <Stack
-                width={5} height={5} borderRadius={3}
-                backgroundColor={C.textMuted}
-              />
-              <Text variant="caption" color={C.textMuted}>
-                {flipped ? 'Tap to see term' : 'Tap to reveal definition'}
-              </Text>
-            </Stack>
+                flex={1} backgroundColor={C.bgCard} borderRadius={24}
+                borderWidth={1} borderColor={C.border} padding={28}
+                alignItems="center" justifyContent="center"
+                style={{ shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}
+              >
+                <Stack backgroundColor={C.flashBg} borderRadius={10} paddingHorizontal={12} paddingVertical={5} marginBottom={20}>
+                  <Text variant="overline" color={C.flashColor} style={{ fontSize: 10 }}>TERM</Text>
+                </Stack>
+                <Text variant="title" color={C.textPrimary} fontWeight="700" textAlign="center" style={{ lineHeight: 30, marginBottom: 16 }}>
+                  {currentCard?.front}
+                </Text>
+                <Stack horizontal alignItems="center" gap={6}>
+                  <Stack width={5} height={5} borderRadius={3} backgroundColor={C.textMuted} />
+                  <Text variant="caption" color={C.textMuted}>Tap to reveal definition</Text>
+                </Stack>
+              </Stack>
+            </Animated.View>
+
+            {/* Definition side */}
+            <Animated.View
+              pointerEvents={flipped ? 'auto' : 'none'}
+              style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                backfaceVisibility: 'hidden',
+                transform: [{ perspective: 1200 }, { rotateY: backRotate }],
+              }}
+            >
+              <Stack
+                flex={1} backgroundColor={C.bgCard} borderRadius={24}
+                borderWidth={1} borderColor={C.border} padding={24}
+                style={{ shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}
+              >
+                <Stack alignItems="center" marginBottom={12}>
+                  <Stack backgroundColor={C.quizBg} borderRadius={10} paddingHorizontal={12} paddingVertical={5}>
+                    <Text variant="overline" color={C.quizColor} style={{ fontSize: 10 }}>DEFINITION</Text>
+                  </Stack>
+                </Stack>
+                <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                  <RichText content={currentCard?.back || ''} fontSize={14} />
+                </ScrollView>
+                <Stack horizontal alignItems="center" justifyContent="center" gap={6} marginTop={10}>
+                  <Stack width={5} height={5} borderRadius={3} backgroundColor={C.textMuted} />
+                  <Text variant="caption" color={C.textMuted}>Tap to see term</Text>
+                </Stack>
+              </Stack>
+            </Animated.View>
           </Stack>
         </StyledPressable>
 
@@ -358,36 +332,6 @@ export default function FlashcardsScreen() {
             </Stack>
           </StyledPressable>
         </Stack>
-
-        {/* Overall progress card */}
-        <StyledCard backgroundColor={C.bgCard} borderRadius={18} padding={18}
-          style={{ borderWidth: 1, borderColor: C.border }}
-        >
-          <Stack horizontal alignItems="center" justifyContent="space-between" marginBottom={10}>
-            <Text variant="label" color={C.textPrimary} fontWeight="700">Deck progress</Text>
-            <Text variant="label" color={C.flashColor} fontWeight="800">{progressPct}%</Text>
-          </Stack>
-          <Stack height={6} backgroundColor={C.bgMuted} borderRadius={3}
-            style={{ overflow: 'hidden' }}
-          >
-            <Stack
-              height={6} borderRadius={3} backgroundColor={C.flashColor}
-              width={`${progressPct}%` as any}
-              style={{
-                shadowColor: C.flashColor, shadowOpacity: 0.3,
-                shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
-              }}
-            />
-          </Stack>
-          <Stack horizontal justifyContent="space-between" marginTop={8}>
-            <Text variant="caption" color={C.textSecondary}>
-              {masteredCount} mastered
-            </Text>
-            <Text variant="caption" color={C.textSecondary}>
-              {totalCards - masteredCount} remaining
-            </Text>
-          </Stack>
-        </StyledCard>
 
       </StyledScrollView>
     </StyledPage>

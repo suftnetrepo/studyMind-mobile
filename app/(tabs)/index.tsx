@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
-import { Platform, ScrollView } from 'react-native'
+import { Platform, ScrollView, RefreshControl } from 'react-native'
 import { router } from 'expo-router'
+import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import {
   StyledPage, Stack, StyledPressable,
@@ -8,13 +9,15 @@ import {
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { useColors, useIsDark, getModuleColors } from '../../src/constants'
-import { useAuthStore, useModuleStore } from '../../src/stores'
+import { useAuthStore, useModuleStore, usePremiumStore } from '../../src/stores'
 import { useModules, useAuth } from '../../src/hooks'
 import { useStreak } from '../../src/hooks/useActivity'
 import { getNotesByModule, initNotesDB, type Note } from '../../src/db/notes'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
+
+const HOME_MODULE_LIMIT = 3
 
 const NOTE_TINTS = [
   { fg: 'sumColor',   bg: 'sumBg'   },
@@ -36,7 +39,7 @@ const relativeTime = (iso: string): string => {
 }
 
 const QUICK_ACTIONS = [
-  { key: 'chat',       icon: 'message-circle', label: 'AI Tutor', route: '/chat',       fg: 'chatColor', bg: 'chatBg'  },
+  { key: 'chat',       icon: 'message-circle', label: 'Tutor',    route: '/chat',       fg: 'chatColor', bg: 'chatBg'  },
   { key: 'quiz',       icon: 'help-circle',    label: 'Quiz',     route: '/quiz',       fg: 'quizColor',    bg: 'quizBg'  },
   { key: 'flashcards', icon: 'credit-card',    label: 'Cards',    route: '/flashcards', fg: 'flashColor',   bg: 'flashBg' },
   { key: 'summary',    icon: 'file-text',      label: 'Summary',  route: '/summary',    fg: 'sumColor',     bg: 'sumBg'   },
@@ -48,8 +51,22 @@ export default function HomeScreen() {
   const user   = useAuthStore((s) => s.user)
   const { logout } = useAuth()
   const { setActiveModule, activeModuleId } = useModuleStore()
-  const { data: modules, loading } = useModules()
-  const { data: streak } = useStreak()
+  const { data: allModules, loading, refetch: refetchModules } = useModules()
+  const activeModules = React.useMemo(() => allModules.filter((m) => m.status !== 'archived'), [allModules])
+  const modules = React.useMemo(() => activeModules.slice(0, HOME_MODULE_LIMIT), [activeModules])
+  const { data: streak, refetch: refetchStreak } = useStreak()
+  const { isPremium } = usePremiumStore()
+  const isSelfLearner = user?.role === 'self_learner'
+  const [refreshing, setRefreshing] = React.useState(false)
+
+  // What to offer when there is nothing to show, by role (a self-learner has nothing to "browse").
+  const emptyState = allModules.length > 0
+    ? { title: 'No active modules', body: 'Everything is archived. Restore a module to see it here.', cta: 'View modules', route: '/(tabs)/modules' }
+    : user?.role === 'self_learner'
+    ? { title: 'Start your first course', body: 'Create a course, add your notes or documents, and study with AI.', cta: 'Create a course', route: '/setup/self-learner' }
+    : user?.role === 'lecturer' || user?.role === 'admin'
+    ? { title: 'Create your first module', body: 'Set up a module and upload materials for your students.', cta: 'Create a module', route: '/setup/lecturer' }
+    : { title: 'Join your first module', body: 'Enter the code your lecturer shared to get started.', cta: 'Join a module', route: '/setup/student' }
 
   const streakDays = streak?.streak_days ?? 0
   const progress   = streak?.weekly_progress ?? 0
@@ -60,20 +77,41 @@ export default function HomeScreen() {
     return streak.week_active.includes(d.toISOString().slice(0, 10))
   })
 
-  const greeting  = 'Good evening'
-  const firstName = user?.full_name?.split(' ')[0] || 'John'
+  const hour      = new Date().getHours()
+  const greeting  = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const firstName = user?.full_name?.split(' ')[0] || 'there'
 
   // Load recent notes for the active or first module
   const [recentNotes, setRecentNotes] = React.useState<Note[]>([])
-  useEffect(() => {
-    const modId = activeModuleId || modules[0]?.id
-    if (!modId) return
+  const notesModuleId = activeModuleId || modules[0]?.id
+  const loadNotes = () => {
+    if (!notesModuleId) return
     try {
       initNotesDB()
-      const notes = getNotesByModule(modId).slice(0, 6)
-      setRecentNotes(notes)
+      setRecentNotes(getNotesByModule(notesModuleId).slice(0, 6))
     } catch {}
-  }, [activeModuleId, modules])
+  }
+
+  // Depends only on a primitive id, so it can never re-trigger itself.
+  useEffect(() => { loadNotes() }, [notesModuleId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tabs stay mounted, so refresh when Home regains focus. The effect depends only on the focus
+  // flag, and the first focus is skipped because the mount fetch already covers it.
+  const isFocused = useIsFocused()
+  const skipFirstFocus = React.useRef(true)
+  useEffect(() => {
+    if (!isFocused) return
+    if (skipFirstFocus.current) { skipFirstFocus.current = false; return }
+    refetchModules(true)
+    loadNotes()
+  }, [isFocused]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onRefresh = async () => {
+    setRefreshing(true)
+    await Promise.all([refetchModules(true), refetchStreak()])
+    loadNotes()
+    setRefreshing(false)
+  }
 
   const handleQuickAction = (mod: any, route: string) => {
     setActiveModule(mod.id, mod.title, mod.course_code)
@@ -87,15 +125,15 @@ export default function HomeScreen() {
 
   return (
     <StyledPage
-      flex={1} backgroundColor={C.bg} showStatusBar
+      flex={1} backgroundColor={C.bg} edges={["top", "left", "right"]} showStatusBar
       statusBarStyle={isDark ? 'light-content' : 'dark-content'}
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >
       <StyledPage.Header.Full>
-        <Stack marginHorizontal={20} horizontal alignItems="center" justifyContent="space-between">
-          <Stack gap={2}>
-            <Text variant="body" color={C.textSecondary}>{`${greeting} 👋`}</Text>
-            <Text variant="title" color={C.textPrimary} fontWeight="800" style={{ fontSize: 30, lineHeight: 36 }}>
+        <Stack marginHorizontal={24} horizontal alignItems="center" justifyContent="space-between">
+          <Stack gap={1}>
+            <Text variant="body" color={C.textSecondary}>{greeting}</Text>
+            <Text variant="title" color={C.textMuted} >
               Hey {firstName},
             </Text>
           </Stack>
@@ -107,18 +145,12 @@ export default function HomeScreen() {
             >
               <Feather name="log-out" size={17} color={C.textSecondary} />
             </StyledPressable>
-            <StyledPressable onPress={() => router.push('/(tabs)/profile' as any)}>
+            <StyledPressable onPress={() => router.push('/profile' as any)}>
               <Stack
-                width={44} height={44} borderRadius={22}
-                backgroundColor={C.primary} alignItems="center" justifyContent="center"
-                style={{
-                  shadowColor: C.primary, shadowOpacity: 0.3,
-                  shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5,
-                }}
+                width={40} height={40} borderRadius={20}
+                backgroundColor={C.bgMuted} alignItems="center" justifyContent="center"
               >
-                <Text variant="label" color={C.white} fontWeight="800">
-                  {(user?.full_name?.charAt(0) || 'S').toUpperCase()}
-                </Text>
+                <Feather name="user" size={18} color={C.textPrimary} />
               </Stack>
             </StyledPressable>
           </Stack>
@@ -127,7 +159,8 @@ export default function HomeScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} colors={[C.primary]} />}
       >
         {/* ── Streak card ───────────────────────────────────────────── */}
         <Stack
@@ -145,16 +178,12 @@ export default function HomeScreen() {
             backgroundColor={C.primaryBg} pointerEvents="none"
           />
           <Stack horizontal alignItems="flex-start" justifyContent="space-between" marginBottom={18}>
-            <Stack gap={4} flex={1}>
-              <Text variant="overline" color={C.textSecondary} style={{ fontSize: 10 }}>
-                STUDY STREAK
-              </Text>
-              <Text variant="subtitle" color={C.textPrimary} fontWeight="800" style={{ fontSize: 19 }}>
+            <Stack gap={1} flex={1}>
+             
+              <Text variant="body" color={C.textPrimary} fontWeight="800" >
                 {streakDays > 0 ? `${streakDays} day streak, keep it up!` : 'Build your streak'}
               </Text>
-              <Text variant="caption" color={C.textSecondary}>
-                Stay consistent to achieve your goals
-              </Text>
+              
             </Stack>
             <Stack
               backgroundColor={C.bgCard} borderRadius={16}
@@ -260,12 +289,14 @@ export default function HomeScreen() {
         </Stack>
 
         {/* ── Module cards with quick actions ──────────────────────── */}
-        <Stack horizontal alignItems="center" justifyContent="space-between" marginBottom={14}>
-          <Text variant="subtitle" color={C.textPrimary} fontWeight="800">
-            Pick up where you left off
+        <Stack paddingHorizontal={16} horizontal alignItems="center" justifyContent="space-between" marginBottom={14}>
+          <Text variant="body" color={C.textMuted} >
+            Your modules
           </Text>
           <StyledPressable onPress={() => router.push('/(tabs)/modules' as any)}>
-            <Text variant="bodySmall" color={C.primary} fontWeight="600">See all</Text>
+            <Text variant="bodySmall" color={C.primary} fontWeight="600">
+              {activeModules.length > HOME_MODULE_LIMIT ? `See all (${activeModules.length})` : 'See all'}
+            </Text>
           </StyledPressable>
         </Stack>
 
@@ -287,17 +318,17 @@ export default function HomeScreen() {
           >
             <Feather name="book-open" size={40} color={C.textMuted} />
             <Text variant="subtitle" color={C.textPrimary} fontWeight="700" textAlign="center">
-              No modules yet
+              {emptyState.title}
             </Text>
             <Text variant="body" color={C.textSecondary} textAlign="center">
-              Join a module using your enrolment code or create your own course.
+              {emptyState.body}
             </Text>
             <StyledButton
               backgroundColor={C.primary} borderRadius={12}
               paddingHorizontal={20} paddingVertical={10}
-              onPress={() => router.push('/(tabs)/modules' as any)}
+              onPress={() => router.push(emptyState.route as any)}
             >
-              <Text variant="button" color={C.white}>Browse modules</Text>
+              <Text variant="button" color={C.white}>{emptyState.cta}</Text>
             </StyledButton>
           </StyledCard>
         )}
@@ -335,7 +366,6 @@ export default function HomeScreen() {
                     <Stack flex={1} gap={4}>
                       <Stack horizontal alignItems="flex-start" gap={8}>
                         <Stack flex={1} gap={2}>
-                          <Text variant="caption" color={C.textSecondary}>{mod.course_code || 'Module'}</Text>
                           <Text variant="label" color={C.textPrimary} fontWeight="800"
                             numberOfLines={2} style={{ fontSize: 16 }}
                           >
@@ -363,27 +393,28 @@ export default function HomeScreen() {
                   </Stack>
                 </StyledPressable>
 
-                <Stack horizontal gap={8}>
+                <ScrollView
+                  horizontal showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8 }}
+                >
                   {QUICK_ACTIONS.map((action) => (
                     <StyledPressable
-                      key={action.key} style={{ flex: 1 }}
+                      key={action.key}
                       onPress={() => handleQuickAction(mod, action.route)}
                     >
                       <Stack
-                        horizontal alignItems="center" justifyContent="center" gap={5}
+                        horizontal alignItems="center" gap={7}
                         backgroundColor={(C as any)[action.bg]}
-                        borderRadius={14} paddingVertical={12}
+                        borderRadius={50} paddingHorizontal={16} paddingVertical={10}
                       >
                         <Feather name={action.icon} size={15} color={(C as any)[action.fg]} />
-                        <Text variant="caption" color={(C as any)[action.fg]} fontWeight="700"
-                          numberOfLines={1} style={{ fontSize: 11 }}
-                        >
+                        <Text variant="caption" color={(C as any)[action.fg]} fontWeight="700" style={{ fontSize: 12 }}>
                           {action.label}
                         </Text>
                       </Stack>
                     </StyledPressable>
                   ))}
-                </Stack>
+                </ScrollView>
               </StyledCard>
             )
           })}
@@ -392,8 +423,8 @@ export default function HomeScreen() {
         {/* ── Recent Notes ─────────────────────────────────────────── */}
         {recentNotes.length > 0 && (
           <>
-            <Stack horizontal alignItems="center" justifyContent="space-between" marginBottom={14}>
-              <Text variant="subtitle" color={C.textPrimary} fontWeight="800">
+            <Stack paddingHorizontal={16} horizontal alignItems="center" justifyContent="space-between" marginBottom={14}>
+              <Text variant="body" color={C.textMuted} >
                 Recent notes
               </Text>
               <StyledPressable onPress={() => router.push('/notes' as any)}>

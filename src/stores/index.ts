@@ -1,3 +1,4 @@
+import type { PremiumPlan } from '../services/premiumService'
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 
@@ -50,6 +51,7 @@ interface AuthState {
     full_name:      string
     role:           'admin' | 'lecturer' | 'student' | 'self_learner'
     institution_id: string | null
+    created_at?:    string
   } | null
   setTokens: (access: string, refresh: string) => void
   setUser:   (user: AuthState['user']) => void
@@ -146,4 +148,20 @@ export const useModuleStore = create<ModuleState>((set) => ({
   clearActiveModule: () => set({
     activeModuleId: null, activeModuleTitle: null, activeCourseCode: null,
   }),
+}))
+
+// ─── Premium store ────────────────────────────────────────────────────────────
+interface PremiumState {
+  isPremium: boolean
+  plan:      PremiumPlan
+  hydrated:  boolean
+  setEntitlement: (isPremium: boolean, plan: PremiumPlan) => void
+}
+
+export const usePremiumStore = create<PremiumState>((set) => ({
+  isPremium: false,
+  plan:      null,
+  hydrated:  false,
+
+  setEntitlement: (isPremium, plan) => set({ isPremium, plan, hydrated: true }),
 }))

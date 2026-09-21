@@ -58,18 +58,18 @@ export default function ActivityScreen() {
   const STATS = STAT_DEFS.map((d) => ({ ...d, value: String(activityData?.[d.key] ?? 0) }))
 
   return (
-    <StyledPage flex={1} backgroundColor={C.bg} showStatusBar
+    <StyledPage flex={1} backgroundColor={C.bg} edges={["top", "left", "right"]} showStatusBar
       statusBarStyle={isDark ? 'light-content' : 'dark-content'}
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >
       <StyledPage.Header.Full>
         <Stack marginHorizontal={20}>
-          <Text variant="overline" color={C.textSecondary}>Your progress</Text>
+      
           <Text variant="title" color={C.textPrimary} fontWeight="800">Activity</Text>
         </Stack>
       </StyledPage.Header.Full>
 
-      <StyledScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
+      <StyledScrollView contentContainerStyle={{ padding: 20, paddingBottom: 24 }}>
         {/* Stats grid */}
         <Stack style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }} marginBottom={28}>
           {STATS.map((stat, i) => {
@@ -115,11 +115,7 @@ export default function ActivityScreen() {
 
         {/* Recent activity */}
         <Stack horizontal alignItems="center" justifyContent="space-between" marginBottom={14}>
-          <Text variant="subtitle" color={C.textPrimary} fontWeight="800">Recent activity</Text>
-          <Stack horizontal alignItems="center" gap={2}>
-            <Text variant="bodySmall" color={C.primary} fontWeight="600">See all</Text>
-            <Feather name="chevron-right" size={15} color={C.primary} />
-          </Stack>
+          <Text variant="body" color={C.textMuted} >Recent activity</Text>
         </Stack>
 
         {recentActivities.length === 0 ? (
