@@ -78,13 +78,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="activity"
-        options={{
-          title:      'Activity',
-          tabBarIcon: ({ color }) => <Icon name="bar-chart-2" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="notes-tab"
         options={{
           title:      'Notes',

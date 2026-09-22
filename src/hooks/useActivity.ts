@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useFocusEffect } from 'expo-router'
-import { activityService, type StreakData, type ActivitySummary } from '../services/api'
+import { activityService, type StreakData } from '../services/api'
 
 // Refetches whenever the screen regains focus, so numbers update after studying.
 function useFocusFetch<T>(fetcher: () => Promise<T>) {
@@ -17,5 +17,4 @@ function useFocusFetch<T>(fetcher: () => Promise<T>) {
   return { data, loading, refetch }
 }
 
-export const useStreak          = () => useFocusFetch<StreakData>(activityService.streak)
-export const useActivitySummary = () => useFocusFetch<ActivitySummary>(activityService.summary)
+export const useStreak = () => useFocusFetch<StreakData>(activityService.streak)

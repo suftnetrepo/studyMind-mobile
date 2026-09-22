@@ -12,31 +12,11 @@ import { useColors, useIsDark, getModuleColors } from '../../src/constants'
 import { useAuthStore, useModuleStore, usePremiumStore } from '../../src/stores'
 import { useModules, useAuth } from '../../src/hooks'
 import { useStreak } from '../../src/hooks/useActivity'
-import { getNotesByModule, initNotesDB, type Note } from '../../src/db/notes'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
 
 const HOME_MODULE_LIMIT = 5
-
-const NOTE_TINTS = [
-  { fg: 'sumColor',   bg: 'sumBg'   },
-  { fg: 'chatColor',  bg: 'chatBg'  },
-  { fg: 'flashColor', bg: 'flashBg' },
-  { fg: 'quizColor',  bg: 'quizBg'  },
-] as const
-
-const relativeTime = (iso: string): string => {
-  const diff  = Math.max(0, Date.now() - new Date(iso).getTime())
-  const mins  = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days  = Math.floor(diff / 86400000)
-  if (mins < 1)   return 'Just now'
-  if (mins < 60)  return `${mins}m ago`
-  if (hours < 24) return `${hours}h ago`
-  if (days === 1) return 'Yesterday'
-  return `${days}d ago`
-}
 
 const QUICK_ACTIONS = [
   { key: 'chat',       icon: 'message-circle', label: 'Tutor',    route: '/chat',       fg: 'chatColor', bg: 'chatBg'  },
@@ -50,7 +30,7 @@ export default function HomeScreen() {
   const isDark = useIsDark()
   const user   = useAuthStore((s) => s.user)
   const { logout } = useAuth()
-  const { setActiveModule, activeModuleId } = useModuleStore()
+  const { setActiveModule } = useModuleStore()
   const { data: allModules, loading, refetch: refetchModules } = useModules()
   const activeModules = React.useMemo(() => allModules.filter((m) => m.status !== 'archived'), [allModules])
   const modules = React.useMemo(() => activeModules.slice(0, HOME_MODULE_LIMIT), [activeModules])
@@ -81,29 +61,6 @@ export default function HomeScreen() {
   const greeting  = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = user?.full_name?.split(' ')[0] || 'there'
 
-  // Load recent notes for the active or first module
-  const [recentNotes, setRecentNotes] = React.useState<Note[]>([])
-  const notesModuleId = activeModuleId || modules[0]?.id
-  const loadNotes = () => {
-    if (!notesModuleId) return
-    try {
-      initNotesDB()
-      setRecentNotes(getNotesByModule(notesModuleId).slice(0, 6))
-    } catch {}
-  }
-
-  // Depends only on a primitive id, so it can never re-trigger itself.
-  useEffect(() => { loadNotes() }, [notesModuleId]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Home previews the notes of the active module, or the first module when none is active. The Notes
-  // screens read the *active* module, so make that module active before opening them; otherwise they
-  // open on an empty list even though Home just showed notes.
-  const openNotes = (path: string) => {
-    const mod = allModules.find((m: any) => m.id === notesModuleId)
-    if (mod && activeModuleId !== mod.id) setActiveModule(mod.id, mod.title, mod.course_code)
-    router.push(path as any)
-  }
-
   // Tabs stay mounted, so refresh when Home regains focus. The effect depends only on the focus
   // flag, and the first focus is skipped because the mount fetch already covers it.
   const isFocused = useIsFocused()
@@ -112,13 +69,11 @@ export default function HomeScreen() {
     if (!isFocused) return
     if (skipFirstFocus.current) { skipFirstFocus.current = false; return }
     refetchModules(true)
-    loadNotes()
   }, [isFocused]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const onRefresh = async () => {
     setRefreshing(true)
     await Promise.all([refetchModules(true), refetchStreak()])
-    loadNotes()
     setRefreshing(false)
   }
 
@@ -435,145 +390,6 @@ export default function HomeScreen() {
             )
           })}
         </ScrollView>
-
-        {/* ── Recent Notes ─────────────────────────────────────────── */}
-        {recentNotes.length > 0 && (
-          <>
-            <Stack paddingHorizontal={16} horizontal alignItems="center" justifyContent="space-between" marginBottom={14}>
-              <Text variant="body" color={C.textMuted} >
-                Recent notes
-              </Text>
-              <StyledPressable onPress={() => openNotes('/notes')}>
-                <Text variant="bodySmall" color={C.primary} fontWeight="600">See all</Text>
-              </StyledPressable>
-            </Stack>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              decelerationRate="fast" snapToAlignment="start"
-              snapToOffsets={recentNotes.map((_, i) => i * 252)}
-              style={{ marginHorizontal: -20 }}
-              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 6, gap: 12 }}
-            >
-              {recentNotes.map((note, idx) => {
-                const t = NOTE_TINTS[idx % NOTE_TINTS.length]
-                const tint = { color: (C as any)[t.fg] as string, bg: (C as any)[t.bg] as string }
-                const wordCount = note.content.trim() ? note.content.trim().split(/\s+/).length : 0
-                // The title is the first line, so preview the text after it.
-                const body    = note.content.split('\n').slice(1).join(' ').replace(/\s+/g, ' ').trim()
-                const preview = body.length > 90 ? `${body.slice(0, 90).trimEnd()}…` : body
-                return (
-                  <StyledPressable key={note.id} onPress={() => openNotes(`/notes/${note.id}`)}>
-                    <Stack
-                      width={240} height={140} borderRadius={24} backgroundColor={tint.bg}
-                      style={{ overflow: 'hidden', borderWidth: 1, borderColor: `${tint.color}1F` }}
-                    >
-                      <Stack flex={1} padding={14} justifyContent="space-between">
-                        <Stack horizontal alignItems="flex-start" justifyContent="space-between">
-                          <Stack
-                            width={40} height={40} alignItems="center" justifyContent="center"
-                            backgroundColor={`${tint.color}2E`}
-                            style={{ borderRadius: 14, transform: [{ rotate: '8deg' }] }}
-                          >
-                            <Stack style={{ transform: [{ rotate: '-8deg' }] }}>
-                              <Feather name="edit-3" size={18} color={tint.color} />
-                            </Stack>
-                          </Stack>
-                          <Stack
-                            backgroundColor={C.bgCard} borderRadius={100}
-                            paddingHorizontal={12} paddingVertical={6}
-                          >
-                            <Text variant="caption" color={C.textPrimary} fontWeight="600">
-                              {note.synced ? 'AI ready' : 'Not synced'}
-                            </Text>
-                          </Stack>
-                        </Stack>
-                        <Stack marginTop={4}>
-                          <Text variant="bodySmall" color={C.textPrimary} 
-                            numberOfLines={1} 
-                          >
-                            {note.title}
-                          </Text>
-                          <Text variant="caption" color={C.textSecondary}
-                            numberOfLines={1}
-                          >
-                            {preview || 'No additional text'}
-                          </Text>
-                        </Stack>
-                      </Stack>
-
-              
-                      <Stack marginTop={8} horizontal alignItems="center" justifyContent="space-between" paddingHorizontal={14} paddingVertical={10}>
-                        <Stack
-                          backgroundColor={`${tint.color}1F`} borderRadius={12}
-                          paddingHorizontal={10} paddingVertical={5}
-                        >
-                          <Text variant="caption" color={C.textSecondary}>
-                            {wordCount} words · {relativeTime(note.updated_at)}
-                          </Text>
-                        </Stack>
-                        <Feather name="chevron-right" size={18} color={C.textSecondary} />
-                      </Stack>
-                    </Stack>
-                  </StyledPressable>
-                )
-              })}
-            </ScrollView>
-            <Stack height={10} />
-
-            <StyledPressable onPress={() => router.push('/(tabs)/activity' as any)}>
-              <Stack
-                horizontal alignItems="center" gap={14}
-                backgroundColor={C.primaryBg} borderRadius={20} padding={16}
-              >
-                <Stack
-                  width={52} height={52} borderRadius={26}
-                  backgroundColor={C.bgCard} alignItems="center" justifyContent="center"
-                >
-                  <Feather name="bar-chart-2" size={22} color={C.primary} />
-                </Stack>
-                <Stack width={1} height={36} backgroundColor={C.border} />
-                <Stack flex={1} gap={2}>
-                  <Text variant="label" color={C.textPrimary} fontWeight="800" style={{ fontSize: 16 }}>
-                    Keep going
-                  </Text>
-                  <Text variant="caption" color={C.textSecondary}>
-                    You're making great progress.
-                  </Text>
-                </Stack>
-                <Feather name="chevron-right" size={20} color={C.primary} />
-              </Stack>
-            </StyledPressable>
-          </>
-        )}
-
-        {/* Show notes CTA if no notes yet */}
-        {recentNotes.length === 0 && modules.length > 0 && (
-          <StyledPressable onPress={() => openNotes('/notes')}>
-            <Stack
-              backgroundColor={C.bgCard} borderRadius={18} padding={18}
-              horizontal alignItems="center" gap={14}
-              style={{ borderWidth: 1.5, borderColor: `${C.flashColor}40` }}
-            >
-              <Stack
-                width={48} height={48} borderRadius={14}
-                backgroundColor={C.flashBg} alignItems="center" justifyContent="center"
-              >
-                <Feather name="edit-3" size={20} color={C.flashColor} />
-              </Stack>
-              <Stack flex={1} gap={3}>
-                <Text variant="label" color={C.textPrimary} fontWeight="700">
-                  Start taking notes
-                </Text>
-                <Text variant="caption" color={C.textSecondary}>
-                  Write notes and turn them into quizzes, flashcards and summaries with AI.
-                </Text>
-              </Stack>
-              <Text style={{ fontSize: 16, color: C.textMuted }}>›</Text>
-            </Stack>
-          </StyledPressable>
-        )}
 
       </ScrollView>
     </StyledPage>

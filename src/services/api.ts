@@ -335,14 +335,8 @@ export interface StreakData {
   }[]
 }
 
-export interface ActivitySummary {
-  chat: number; quiz: number; flashcard: number; summary: number
-  document_upload: number; notes: number; total: number
-}
-
 export const activityService = {
-  streak:  () => api.get<StreakData>('/api/activity/streak'),
-  summary: () => api.get<ActivitySummary>('/api/activity/summary'),
+  streak: () => api.get<StreakData>('/api/activity/streak'),
 }
 
 // ─── Onboarding ───────────────────────────────────────────────────────────────
