@@ -17,7 +17,7 @@ import { getNotesByModule, initNotesDB, type Note } from '../../src/db/notes'
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
 
-const HOME_MODULE_LIMIT = 3
+const HOME_MODULE_LIMIT = 5
 
 const NOTE_TINTS = [
   { fg: 'sumColor',   bg: 'sumBg'   },
@@ -342,12 +342,19 @@ export default function HomeScreen() {
           </StyledCard>
         )}
 
-        <Stack gap={14} marginBottom={28}>
+        <ScrollView
+          horizontal showsHorizontalScrollIndicator={false}
+          decelerationRate="fast" snapToAlignment="start"
+          snapToOffsets={modules.map((_, i) => i * 316)}
+          style={{ marginHorizontal: -20, marginBottom: 28 }}
+          contentContainerStyle={{ paddingHorizontal: 20, gap: 14 }}
+        >
           {modules.map((mod, idx) => {
             const mc = getModuleColors(C, idx)
             return (
               <StyledCard
                 key={mod.id}
+                width={300}
                 backgroundColor={C.bgCard} borderRadius={24} padding={16} gap={16}
                 style={{
                   borderWidth: 1, borderColor: C.border,
@@ -427,7 +434,7 @@ export default function HomeScreen() {
               </StyledCard>
             )
           })}
-        </Stack>
+        </ScrollView>
 
         {/* ── Recent Notes ─────────────────────────────────────────── */}
         {recentNotes.length > 0 && (

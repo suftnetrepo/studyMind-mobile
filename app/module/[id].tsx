@@ -6,7 +6,7 @@ import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
 import {
   StyledPage, StyledScrollView, Stack,
-  StyledCard, StyledPressable, StyledButton, TabBar, type TabItem, useToast, useLoader, useActionSheet,
+  StyledCard, StyledPressable, StyledButton, TabBar, type TabItem, useToast, useLoader, useActionSheet, useDialogue,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
@@ -14,8 +14,7 @@ import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { useColors, useIsDark, TOOLS } from '../../src/constants'
 import { useModuleStore, useAuthStore } from '../../src/stores'
 import { useModuleDetail } from '../../src/hooks'
-import { chatService } from '../../src/services/api'
-import { useNotes } from '../../src/hooks/useNotes'
+import { chatService, moduleService } from '../../src/services/api'
 import { ToolArt, LaptopArt, type ToolArtKind } from '../../src/components/ToolArt'
 
 type TabKey = 'overview' | 'documents' | 'chat'
@@ -36,6 +35,64 @@ const TOOL_META = {
   summary:    { icon: 'clipboard',      label: 'Summary',    desc: 'Get a clear overview of any topic', color: 'sumColor',   bg: 'sumBg'   },
 } as const satisfies Record<string, { icon: keyof typeof Feather.glyphMap; label: string; desc: string; color: string; bg: string }>
 
+// An unsynced pick — shown so the student can confirm it's the right file
+// (or discard it) before it's actually uploaded and indexed for the AI.
+function PendingDocCard({
+  name, tone, syncing, onSync, onDiscard, C,
+}: {
+  name: string
+  tone: 'primary' | 'flash'
+  syncing: boolean
+  onSync: () => void
+  onDiscard: () => void
+  C: ReturnType<typeof useColors>
+}) {
+  const iconBg    = tone === 'primary' ? C.primaryBg : C.flashBg
+  const iconColor = tone === 'primary' ? C.primary : C.flashColor
+  return (
+    <StyledCard backgroundColor={C.bgCard} borderRadius={14} padding={14}
+      style={{ borderWidth: 1, borderColor: C.warning }}
+    >
+      <Stack horizontal alignItems="center" gap={12}>
+        <Stack width={42} height={42} borderRadius={12}
+          backgroundColor={iconBg} alignItems="center" justifyContent="center"
+        >
+          <Feather name={FILE_ICON[name.split('.').pop() || ''] || 'file'} size={18} color={iconColor} />
+        </Stack>
+        <Stack flex={1} gap={4}>
+          <Text variant="label" color={C.textPrimary} fontWeight="600" numberOfLines={1}>{name}</Text>
+          <Stack backgroundColor={C.warningBg} borderRadius={6} paddingHorizontal={7} paddingVertical={2}
+            alignSelf="flex-start"
+          >
+            <Text variant="caption" color={C.warning} fontWeight="700" style={{ fontSize: 9 }}>
+              ● not synced
+            </Text>
+          </Stack>
+        </Stack>
+        {!syncing && (
+          <StyledPressable
+            onPress={onDiscard}
+            width={32} height={32} borderRadius={10}
+            alignItems="center" justifyContent="center"
+          >
+            <Feather name="trash-2" size={16} color={C.textMuted} />
+          </StyledPressable>
+        )}
+        <StyledButton
+          backgroundColor={C.warning} borderRadius={10}
+          paddingHorizontal={14} paddingVertical={9}
+          loading={syncing} onPress={onSync}
+        >
+          <Text variant="caption" color={C.white} fontWeight="700">Sync now</Text>
+        </StyledButton>
+      </Stack>
+      <Text variant="caption" color={C.textSecondary} style={{ fontSize: 11, marginTop: 8 }}>
+        The AI Tutor can't see this yet. Tap Sync now to add it to what it knows for this module.
+      </Text>
+    </StyledCard>
+  )
+}
+
 export default function ModuleDetailScreen() {
   const C      = useColors()
   const isDark = useIsDark()
@@ -46,15 +103,29 @@ export default function ModuleDetailScreen() {
   const [tab, setTab] = React.useState<TabKey>('overview')
 
   const {
-    module, documents, sessions, loading, uploadDocument, deleteDocument, deleteSession,
+    module, documents, sessions, loading, uploadDocument, deleteDocument, deleteSession, refetch,
   } = useModuleDetail(id || null)
-  const { notes, createNote, updateNote } = useNotes(id || null)
   const toast = useToast()
   const loader = useLoader()
   const actionSheet = useActionSheet()
+  const dialogue = useDialogue()
 
   const classDocs = documents.filter((d) => d.visibility === 'class')
   const myNotes   = documents.filter((d) => d.visibility === 'personal')
+
+  // A picked file or scanned page lands here first, unsynced — the AI only
+  // learns from it once the student confirms it's the right one and taps
+  // Sync. Uploading/indexing immediately, before the student can review it,
+  // is what let a wrong or half-picked file reach the AI with no way back —
+  // and scanning used to skip this list entirely and jump to Notes instead,
+  // which is the inconsistent "different screen" flow this replaces.
+  type PendingDoc =
+    | { id: string; name: string; visibility: 'class' | 'personal'; source: 'file'; uri: string; type: string }
+    | { id: string; name: string; visibility: 'class' | 'personal'; source: 'text'; content: string }
+  const [pendingDocs, setPendingDocs] = React.useState<PendingDoc[]>([])
+  const [syncingId,   setSyncingId]   = React.useState<string | null>(null)
+  const pendingClassDocs = pendingDocs.filter((d) => d.visibility === 'class')
+  const pendingMyDocs    = pendingDocs.filter((d) => d.visibility === 'personal')
 
   const handleUpload = async (visibility: 'class' | 'personal') => {
     const result = await DocumentPicker.getDocumentAsync({
@@ -63,19 +134,39 @@ export default function ModuleDetailScreen() {
     })
     if (result.canceled) return
     const file = result.assets[0]
-    const success = await uploadDocument(
-      { uri: file.uri, name: file.name, type: file.mimeType || 'application/pdf' },
-      visibility,
-    )
+    const pending: PendingDoc = { id: `pending-${Date.now()}`, name: file.name, visibility, source: 'file', uri: file.uri, type: file.mimeType || 'application/pdf' }
+    setPendingDocs((prev) => [pending, ...prev])
+    syncPendingDoc(pending)
+  }
+
+  const syncPendingDoc = async (pending: PendingDoc) => {
+    const ok = await dialogue.confirm({
+      title:        'Sync this document?',
+      message:      `You haven't synced "${pending.name}" yet — the AI Tutor can't see it until you do. Sync it now so it can use it to answer your questions?`,
+      icon:         '🔄',
+      confirmLabel: 'Sync now',
+      cancelLabel:  'Not yet',
+    })
+    if (!ok) return
+    setSyncingId(pending.id)
+    const success = pending.source === 'file'
+      ? await uploadDocument({ uri: pending.uri, name: pending.name, type: pending.type }, pending.visibility)
+      : await moduleService.pasteText(id!, pending.name, pending.content, pending.visibility)
+        .then(() => refetch().then(() => true))
+        .catch((e: any) => { toast.error('Sync failed', e.message); return false })
+    setSyncingId(null)
     if (success) {
+      setPendingDocs((prev) => prev.filter((p) => p.id !== pending.id))
       toast.success(
-        visibility === 'personal' ? 'Notes uploaded!' : 'Material uploaded!',
-        visibility === 'personal'
-          ? 'Your notes have been indexed and are ready to use.'
-          : 'The document has been indexed and is now available to the class.',
+        pending.visibility === 'personal' ? 'Synced!' : 'Synced to class!',
+        pending.visibility === 'personal'
+          ? 'Indexed and ready to use in the AI Tutor.'
+          : 'Indexed and now available to the class.',
       )
     }
   }
+
+  const discardPendingDoc = (id: string) => setPendingDocs((prev) => prev.filter((p) => p.id !== id))
 
   const processScan = async (asset: ImagePicker.ImagePickerAsset) => {
     if (!asset.base64) return
@@ -88,10 +179,10 @@ export default function ModuleDetailScreen() {
         toast.warning('No text found', 'Try again with the page in clear view.')
         return
       }
-      const note = createNote(activeCourseCode || module?.course_code, 'Scanned note')
-      updateNote(note.id, text)
-      toast.success('Scanned!', 'Saved as a note. Review it before syncing to AI.')
-      router.push(`/notes/${note.id}` as any)
+      const pending: PendingDoc = { id: `pending-${Date.now()}`, name: `Scanned page ${new Date().toLocaleDateString()}`, visibility: 'personal', source: 'text', content: text }
+      setPendingDocs((prev) => [pending, ...prev])
+      setTab('documents')
+      syncPendingDoc(pending)
     } catch (e: any) {
       toast.error('Could not read image', e.message)
     } finally {
@@ -127,7 +218,7 @@ export default function ModuleDetailScreen() {
 
   const handleScan = () => {
     actionSheet.show({
-      title: 'Scan notes',
+      title: 'Scan a page',
       items: [
         { icon: '📷', label: 'Take a photo',        onPress: () => scanFrom('camera')  },
         { icon: '🖼️', label: 'Choose from gallery', onPress: () => scanFrom('gallery') },
@@ -326,6 +417,19 @@ export default function ModuleDetailScreen() {
               </Stack>
             )}
 
+            {pendingClassDocs.length > 0 && (
+              <Stack gap={10}>
+                {pendingClassDocs.map((doc) => (
+                  <PendingDocCard
+                    key={doc.id} name={doc.name} tone="primary" C={C}
+                    syncing={syncingId === doc.id}
+                    onSync={() => syncPendingDoc(doc)}
+                    onDiscard={() => discardPendingDoc(doc.id)}
+                  />
+                ))}
+              </Stack>
+            )}
+
             {classDocs.length > 0 && (
               <Stack gap={10}>
                 {classDocs.map((doc) => (
@@ -380,7 +484,7 @@ export default function ModuleDetailScreen() {
               </Stack>
             )}
 
-            {!loading && classDocs.length === 0 && (
+            {!loading && classDocs.length === 0 && pendingClassDocs.length === 0 && (
               <StyledCard backgroundColor={C.bgCard} borderRadius={18} padding={28}
                 alignItems="center" gap={10}
                 style={{ borderWidth: 1, borderColor: C.border }}
@@ -402,6 +506,19 @@ export default function ModuleDetailScreen() {
                 {[1, 2, 3].map((i) => (
                   <Stack key={i} height={72} backgroundColor={C.bgMuted} borderRadius={14}
                     style={{ opacity: 0.4 }}
+                  />
+                ))}
+              </Stack>
+            )}
+
+            {pendingMyDocs.length > 0 && (
+              <Stack gap={10}>
+                {pendingMyDocs.map((doc) => (
+                  <PendingDocCard
+                    key={doc.id} name={doc.name} tone="flash" C={C}
+                    syncing={syncingId === doc.id}
+                    onSync={() => syncPendingDoc(doc)}
+                    onDiscard={() => discardPendingDoc(doc.id)}
                   />
                 ))}
               </Stack>
@@ -451,7 +568,7 @@ export default function ModuleDetailScreen() {
               </Stack>
             )}
 
-            {!loading && myNotes.length === 0 && (
+            {!loading && myNotes.length === 0 && pendingMyDocs.length === 0 && (
               <StyledCard backgroundColor={C.bgCard} borderRadius={18} padding={28}
                 alignItems="center" gap={10}
                 style={{ borderWidth: 1, borderColor: C.border }}

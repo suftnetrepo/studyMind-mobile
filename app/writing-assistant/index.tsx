@@ -13,6 +13,8 @@ import {
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { RichText, preprocessMath } from '../../src/components/RichText'
+import { FontSizeButton } from '../../src/components/FontSizeButton'
+import { FontSizePopup } from '../../src/components/FontSizePopup'
 import { useColors, useIsDark } from '../../src/constants'
 import { shareText } from '../../src/utils/share'
 import { quotaGate, incrementQuota } from '../../src/utils/quota'
@@ -67,6 +69,7 @@ export default function WritingAssistantScreen() {
   const [result,     setResult]     = useState('')
   const [generating, setGenerating] = useState(false)
   const [sheetOpen,  setSheetOpen]  = useState(false)
+  const [fontSizeOpen, setFontSizeOpen] = useState(false)
 
   const [format,      setFormat]      = useState('General')
   const [tone,        setTone]        = useState('Auto')
@@ -488,6 +491,7 @@ export default function WritingAssistantScreen() {
             horizontal alignItems="center" justifyContent="flex-end" gap={8}
             paddingHorizontal={16} paddingBottom={8}
           >
+            <FontSizeButton onPress={() => setFontSizeOpen(true)} />
             <StyledPressable
               onPress={handleCopy}
               width={38} height={38} borderRadius={12}
@@ -520,6 +524,7 @@ export default function WritingAssistantScreen() {
           </ScrollView>
         </Stack>
       </Modal>
+      <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
     </StyledPage>
   )
 }

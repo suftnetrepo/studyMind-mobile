@@ -18,6 +18,9 @@ import { useChat, type ChatMessage, type ScopeMode, type ComplexityLevel } from 
 import { chatService } from '../../src/services/api'
 import { useNotes } from '../../src/hooks/useNotes'
 import { copyToClipboard, shareText, formatConversationForExport } from '../../src/utils/share'
+import { TypingDots } from '../../src/components/TypingDots'
+import { FontSizeButton } from '../../src/components/FontSizeButton'
+import { FontSizePopup } from '../../src/components/FontSizePopup'
 
 const MAX_MESSAGE_CHARS = 8000
 const LONG_SCAN_CHARS   = 1500
@@ -47,6 +50,7 @@ export default function ChatScreen() {
   const { createNote, updateNote } = useNotes(activeModuleId || null)
 
   const [input, setInput] = React.useState('')
+  const [fontSizeOpen, setFontSizeOpen] = React.useState(false)
   const [busy,  setBusy]  = useState(false)          // scanning / transcribing
   const [recording,   setRecording]   = useState<Audio.Recording | null>(null)
   const recordingRef = useRef<Audio.Recording | null>(null)
@@ -258,14 +262,8 @@ export default function ChatScreen() {
             borderRadius={20} borderBottomLeftRadius={5}
             borderWidth={1} borderColor={C.border}
             paddingHorizontal={18} paddingVertical={16}
-            horizontal gap={6} alignItems="center"
           >
-            {[0, 0.15, 0.3].map((delay, i) => (
-              <Stack
-                key={i} width={7} height={7} borderRadius={4}
-                backgroundColor={C.primary} style={{ opacity: 0.4 + i * 0.2 }}
-              />
-            ))}
+            <TypingDots color={C.primary} />
           </Stack>
         </Stack>
       )
@@ -360,22 +358,26 @@ export default function ChatScreen() {
         subtitle={activeModuleTitle || undefined}
         onBackPress={() => router.back()}
         rightIcon={
-          <StyledPressable
-            onPress={() => {
-              const text = formatConversationForExport(
-                messages,
-                activeCourseCode || 'AI Tutor',
-              )
-              shareText(text, 'studymind-conversation.txt', toast)
-            }}
-            width={38} height={38} borderRadius={11}
-            backgroundColor={C.bgMuted}
-            alignItems="center" justifyContent="center"
-          >
-            <Feather name="share" size={16} color={C.textPrimary} />
-          </StyledPressable>
+          <Stack horizontal gap={8}>
+            <FontSizeButton onPress={() => setFontSizeOpen(true)} />
+            <StyledPressable
+              onPress={() => {
+                const text = formatConversationForExport(
+                  messages,
+                  activeCourseCode || 'AI Tutor',
+                )
+                shareText(text, 'studymind-conversation.txt', toast)
+              }}
+              width={38} height={38} borderRadius={11}
+              backgroundColor={C.bgMuted}
+              alignItems="center" justifyContent="center"
+            >
+              <Feather name="share" size={16} color={C.textPrimary} />
+            </StyledPressable>
+          </Stack>
         }
       />
+      <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
 
       {/* Complexity level */}
       <Stack horizontal paddingHorizontal={20} paddingTop={4} paddingBottom={8} gap={8}>
@@ -413,6 +415,8 @@ export default function ChatScreen() {
           flexGrow: messages.length === 0 ? 1 : 0,
         }}
         showsVerticalScrollIndicator={false}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           <Stack flex={1} alignItems="center" justifyContent="center" padding={32} gap={16}>
             <Stack

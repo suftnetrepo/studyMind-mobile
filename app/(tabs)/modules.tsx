@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Platform, TextInput, RefreshControl } from 'react-native'
+import { Platform, TextInput, RefreshControl, KeyboardAvoidingView } from 'react-native'
 import { router } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
@@ -25,99 +25,41 @@ function JoinCodeForm({
   const [code, setCode] = useState('')
 
   return (
-    <Stack gap={12} paddingHorizontal={16} paddingBottom={4}>
-      <Stack
-        backgroundColor={colors.bgInput} borderRadius={14}
-        borderWidth={1} borderColor={colors.border}
-        paddingHorizontal={16} paddingVertical={12}
-      >
-        <TextInput
-          value={code}
-          onChangeText={setCode}
-          placeholder="Enter enrolment code"
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          autoFocus
-          returnKeyType="done"
-          onSubmitEditing={() => code.trim() && onSubmit(code.trim())}
-          style={{ color: colors.textPrimary, fontSize: 16 }}
-        />
-      </Stack>
-      <StyledButton
-        backgroundColor={code.trim() ? colors.primary : colors.bgMuted}
-        borderRadius={12} paddingVertical={13}
-        disabled={!code.trim() || submitting}
-        loading={submitting}
-        onPress={() => onSubmit(code.trim())}
-      >
-        <Text variant="label" color={code.trim() ? colors.white : colors.textMuted}
-          fontWeight="700" textAlign="center"
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Stack gap={12} paddingHorizontal={16} paddingBottom={4}>
+        <Stack
+          backgroundColor={colors.bgInput} borderRadius={14}
+          borderWidth={1} borderColor={colors.border}
+          paddingHorizontal={16} paddingVertical={12}
         >
-          Join module
-        </Text>
-      </StyledButton>
-    </Stack>
-  )
-}
-
-// ─── Create module — small form rendered inside an action sheet ─────────────
-function CreateModuleForm({
-  colors, submitting, onSubmit,
-}: {
-  colors: ReturnType<typeof useColors>
-  submitting: boolean
-  onSubmit: (title: string, courseCode: string) => void
-}) {
-  const [title, setTitle]           = useState('')
-  const [courseCode, setCourseCode] = useState('')
-
-  return (
-    <Stack gap={10} paddingHorizontal={16} paddingBottom={4}>
-      <Stack
-        backgroundColor={colors.bgInput} borderRadius={14}
-        borderWidth={1} borderColor={colors.border}
-        paddingHorizontal={16} paddingVertical={12}
-      >
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Module title"
-          placeholderTextColor={colors.textMuted}
-          autoFocus
-          style={{ color: colors.textPrimary, fontSize: 16 }}
-        />
-      </Stack>
-      <Stack
-        backgroundColor={colors.bgInput} borderRadius={14}
-        borderWidth={1} borderColor={colors.border}
-        paddingHorizontal={16} paddingVertical={12}
-      >
-        <TextInput
-          value={courseCode}
-          onChangeText={setCourseCode}
-          placeholder="Course code (optional)"
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="characters"
-          returnKeyType="done"
-          onSubmitEditing={() => title.trim() && onSubmit(title.trim(), courseCode.trim())}
-          style={{ color: colors.textPrimary, fontSize: 16 }}
-        />
-      </Stack>
-      <StyledButton
-        backgroundColor={title.trim() ? colors.primary : colors.bgMuted}
-        borderRadius={12} paddingVertical={13}
-        disabled={!title.trim() || submitting}
-        loading={submitting}
-        onPress={() => onSubmit(title.trim(), courseCode.trim())}
-      >
-        <Text variant="label" color={title.trim() ? colors.white : colors.textMuted}
-          fontWeight="700" textAlign="center"
+          <TextInput
+            value={code}
+            onChangeText={setCode}
+            placeholder="Enter enrolment code"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            autoFocus
+            returnKeyType="done"
+            onSubmitEditing={() => code.trim() && onSubmit(code.trim())}
+            style={{ color: colors.textPrimary, fontSize: 16 }}
+          />
+        </Stack>
+        <StyledButton
+          backgroundColor={code.trim() ? colors.primary : colors.bgMuted}
+          borderRadius={12} paddingVertical={13}
+          disabled={!code.trim() || submitting}
+          loading={submitting}
+          onPress={() => onSubmit(code.trim())}
         >
-          Create module
-        </Text>
-      </StyledButton>
-    </Stack>
+          <Text variant="label" color={code.trim() ? colors.white : colors.textMuted}
+            fontWeight="700" textAlign="center"
+          >
+            Join module
+          </Text>
+        </StyledButton>
+      </Stack>
+    </KeyboardAvoidingView>
   )
 }
 
@@ -158,7 +100,8 @@ export default function ModulesScreen() {
 
   const isStudent = user?.role === 'student'
   const canCreate = user?.role === 'lecturer' || user?.role === 'admin' || user?.role === 'self_learner'
-  const canJoin   = user?.role === 'student'  || user?.role === 'self_learner'
+  // Institution join is a student/lecturer concept — self-learner release doesn't use it.
+  const canJoin   = user?.role === 'student'
 
   const filtered = modules.filter((m) => {
     if (filter === 'all') return true
@@ -198,28 +141,7 @@ export default function ModulesScreen() {
     )
   }
 
-  const openCreateSheet = () => {
-    const sheetId = actionSheet.present(
-      <CreateModuleForm
-        colors={C}
-        submitting={submitting}
-        onSubmit={async (title, courseCode) => {
-          setSubmitting(true)
-          try {
-            await moduleService.create({ title, course_code: courseCode || undefined })
-            actionSheet.dismiss(sheetId)
-            toast.success('Module created!', `${title} is ready.`)
-            await refetch()
-          } catch (e: any) {
-            toast.error('Could not create module', e.message)
-          } finally {
-            setSubmitting(false)
-          }
-        }}
-      />,
-      { title: 'Create module' },
-    )
-  }
+  const openCreateSheet = () => router.push('/module/create' as any)
 
   const setArchived = async (mod: any, archive: boolean) => {
     try {

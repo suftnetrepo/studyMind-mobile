@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Platform, TextInput, ScrollView, KeyboardAvoidingView, AppState } from 'react-native'
+import { Platform, TextInput, ScrollView, KeyboardAvoidingView, AppState, TouchableWithoutFeedback, Keyboard } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import {
@@ -8,8 +8,10 @@ import {
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
+import { FontSizeButton } from '../../src/components/FontSizeButton'
+import { FontSizePopup } from '../../src/components/FontSizePopup'
 import { useColors, useIsDark } from '../../src/constants'
-import { useModuleStore } from '../../src/stores'
+import { useModuleStore, useReaderFontStore } from '../../src/stores'
 import { useNotes } from '../../src/hooks/useNotes'
 import { getNoteById, type Note } from '../../src/db/notes'
 
@@ -26,6 +28,8 @@ export default function NoteEditorScreen() {
   const [note,    setNote]    = useState<Note | null>(() => (id ? getNoteById(id) : null))
   const [content, setContent] = useState(() => (id ? getNoteById(id)?.content ?? '' : ''))
   const [input,   setInput]   = useState('')
+  const [fontSizeOpen, setFontSizeOpen] = useState(false)
+  const readerScale = useReaderFontStore((s) => s.scale)
   const [sel,     setSel]     = useState({ start: 0, end: 0 })
   const inputRef  = useRef<TextInput>(null)
   const scrollRef = useRef<ScrollView>(null)
@@ -177,16 +181,20 @@ export default function NoteEditorScreen() {
         subtitle={`${note?.course_code || activeCourseCode || ''} · ${wordCount} words`}
         onBackPress={goBack}
         rightIcon={
-          <StyledPressable
-            width={38} height={38} borderRadius={11}
-            backgroundColor={C.bgMuted}
-            alignItems="center" justifyContent="center"
-            onPress={handleActions}
-          >
-            <Feather name="more-horizontal" size={18} color={C.textPrimary} />
-          </StyledPressable>
+          <Stack horizontal gap={8}>
+            <FontSizeButton onPress={() => setFontSizeOpen(true)} />
+            <StyledPressable
+              width={38} height={38} borderRadius={11}
+              backgroundColor={C.bgMuted}
+              alignItems="center" justifyContent="center"
+              onPress={handleActions}
+            >
+              <Feather name="more-horizontal" size={18} color={C.textPrimary} />
+            </StyledPressable>
+          </Stack>
         }
       />
+      <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
 
       {/* Status and actions */}
       {note && (() => {
@@ -227,32 +235,34 @@ export default function NoteEditorScreen() {
       })()}
 
       {/* Note content area */}
-      <ScrollView
-        ref={scrollRef}
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, paddingBottom: 16 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <TextInput
-          value={content}
-          onChangeText={handleContentChange}
-          multiline
-          editable
-          onBlur={flushSave}
-          scrollEnabled={false}
-          style={{
-            color:      C.textPrimary,
-            fontSize:   15,
-            fontFamily: 'PlusJakartaSans_400Regular',
-            lineHeight: 21,
-            textAlignVertical: 'top',
-            minHeight: 120,
-          }}
-          placeholder="Start writing your note here, or use the box below to add to it."
-          placeholderTextColor={C.textMuted}
-        />
-      </ScrollView>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ScrollView
+          ref={scrollRef}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 20, paddingBottom: 16, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <TextInput
+            value={content}
+            onChangeText={handleContentChange}
+            multiline
+            editable
+            onBlur={flushSave}
+            scrollEnabled={false}
+            style={{
+              color:      C.textPrimary,
+              fontSize:   15 * readerScale,
+              fontFamily: 'PlusJakartaSans_400Regular',
+              lineHeight: 21 * readerScale,
+              textAlignVertical: 'top',
+              minHeight: 120,
+            }}
+            placeholder="Start writing your note here, or use the box below to add to it."
+            placeholderTextColor={C.textMuted}
+          />
+        </ScrollView>
+      </TouchableWithoutFeedback>
 
       {/* Input bar — like chat */}
       <KeyboardAvoidingView

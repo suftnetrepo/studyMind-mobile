@@ -38,6 +38,50 @@ export const useThemeStore = create<ThemeState>((set) => ({
   },
 }))
 
+// ─── Reader font size — scales AI answers, notes, summaries, flashcards, etc. ──
+// A multiplier (not fixed px) since it has to work across many variant sizes
+// (chat body 14px, flashcard 18px, ...), not one fixed reading surface like a
+// Bible verse.
+export const READER_SCALE_STEPS = [0.85, 1, 1.15, 1.3, 1.45] as const
+const READER_SCALE_KEY = 'studymind_reader_scale'
+
+interface ReaderFontState {
+  scale:        number
+  hydrated:     boolean
+  hydrate:      () => Promise<void>
+  increase:     () => void
+  decrease:     () => void
+  reset:        () => void
+}
+
+export const useReaderFontStore = create<ReaderFontState>((set, get) => {
+  const persist = (scale: number) => SecureStore.setItemAsync(READER_SCALE_KEY, String(scale)).catch(() => {})
+  const step = (dir: 1 | -1) => {
+    const steps = READER_SCALE_STEPS as readonly number[]
+    const i = steps.indexOf(get().scale)
+    const next = steps[Math.min(steps.length - 1, Math.max(0, (i === -1 ? 1 : i) + dir))]
+    set({ scale: next })
+    persist(next)
+  }
+
+  return {
+    scale:    1,
+    hydrated: false,
+    hydrate: async () => {
+      try {
+        const stored = Number(await SecureStore.getItemAsync(READER_SCALE_KEY))
+        if ((READER_SCALE_STEPS as readonly number[]).includes(stored)) set({ scale: stored, hydrated: true })
+        else set({ hydrated: true })
+      } catch {
+        set({ hydrated: true })
+      }
+    },
+    increase: () => step(1),
+    decrease: () => step(-1),
+    reset:    () => { set({ scale: 1 }); persist(1) },
+  }
+})
+
 // ─── Auth store ───────────────────────────────────────────────────────────────
 const ACCESS_KEY  = 'studymind_access_token'
 const REFRESH_KEY = 'studymind_refresh_token'

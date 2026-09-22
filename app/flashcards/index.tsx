@@ -10,11 +10,17 @@ import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { EmptyState } from '../../src/components/EmptyState'
 import { RichText } from '../../src/components/RichText'
+import { FontSizeButton } from '../../src/components/FontSizeButton'
+import { FontSizePopup } from '../../src/components/FontSizePopup'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { useFlashcards } from '../../src/hooks'
 import { useIsFocused } from '@react-navigation/native'
 import { takePendingDeck } from '../../src/utils/deckBridge'
+
+// Untitled decks default to "Flashcards — N cards" server-side — redundant
+// once we're already inside the Flashcards section, so strip it for display.
+const deckDisplayTitle = (title: string) => title.replace(/^Flashcards\s*[—-]\s*/i, '')
 
 export default function FlashcardsScreen() {
   const C      = useColors()
@@ -28,6 +34,7 @@ export default function FlashcardsScreen() {
     generating, updating, decksLoaded, refreshDecks,
     flip, prevCard, nextCard, updateCard, openDeck, closeDeck, deleteDeck,
   } = useFlashcards(activeModuleId)
+  const [fontSizeOpen, setFontSizeOpen] = React.useState(false)
 
   // Back from the create screen: open the deck that was just made, otherwise refresh the list.
   const isFocused = useIsFocused()
@@ -112,7 +119,7 @@ export default function FlashcardsScreen() {
                               <Feather name={done ? 'check-circle' : 'credit-card'} size={21} color={acc.fg} />
                             </Stack>
                             <Stack flex={1} gap={4}>
-                              <Text variant="label" color={C.textPrimary} fontWeight="700" numberOfLines={1}>{d.title}</Text>
+                              <Text variant="label" color={C.textPrimary} fontWeight="700" numberOfLines={1}>{deckDisplayTitle(d.title)}</Text>
                               <Text variant="caption" color={C.textSecondary} numberOfLines={1}>
                                 {d.card_count} cards · {d.mastered_count} mastered{d.created_at ? ` · ${when(d.created_at)}` : ''}
                               </Text>
@@ -168,19 +175,22 @@ export default function FlashcardsScreen() {
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >
       <ScreenHeader
-        title={deck.title}
+        title={deckDisplayTitle(deck.title)}
         subtitle={`${activeCourseCode || ''} · Card ${cardIdx + 1} of ${totalCards}`}
         onBackPress={closeDeck}
         rightIcon={
-          <Stack
-            horizontal alignItems="center" gap={4}
-            backgroundColor={C.flashBg} borderRadius={10}
-            paddingHorizontal={10} paddingVertical={5}
-          >
-            <Text variant="caption" color={C.flashColor} fontWeight="700">
-              {masteredCount}/{totalCards}
-            </Text>
-            <Feather name="check" size={11} color={C.flashColor} />
+          <Stack horizontal alignItems="center" gap={8}>
+            <FontSizeButton onPress={() => setFontSizeOpen(true)} />
+            <Stack
+              horizontal alignItems="center" gap={4}
+              backgroundColor={C.flashBg} borderRadius={10}
+              paddingHorizontal={10} paddingVertical={5}
+            >
+              <Text variant="caption" color={C.flashColor} fontWeight="700">
+                {masteredCount}/{totalCards}
+              </Text>
+              <Feather name="check" size={11} color={C.flashColor} />
+            </Stack>
           </Stack>
         }
       />
@@ -334,6 +344,7 @@ export default function FlashcardsScreen() {
         </Stack>
 
       </StyledScrollView>
+      <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
     </StyledPage>
   )
 }

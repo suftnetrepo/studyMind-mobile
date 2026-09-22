@@ -221,7 +221,7 @@ export default function SelfLearnerSetup() {
                 <HeroIcon name="compass" />
                 <Text variant="header" color={C.textPrimary} fontWeight="800" textAlign="center">What are you studying?</Text>
                 <Text variant="body" color={C.textSecondary} textAlign="center" style={{ lineHeight: 24 }}>
-                  Create a personal course for anything you want to learn. No institution needed.
+                  Any subject or course, from secondary school to professional exams. No institution needed.
                 </Text>
               </Stack>
               <StyledCard backgroundColor={C.bgCard} borderRadius={20} padding={20}
@@ -229,7 +229,7 @@ export default function SelfLearnerSetup() {
               >
                 <Stack gap={16}>
                   <StyledForm.Input
-                    label="Course name" placeholder="e.g. Python Programming, IELTS Prep"
+                    label="Subject or course name" placeholder="e.g. Biology, Python Programming, IELTS Prep"
                     value={title} onChangeText={setTitle} colors={getFieldColors(C)}
                   />
                   <Stack gap={8}>

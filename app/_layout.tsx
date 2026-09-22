@@ -14,7 +14,7 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans'
-import { useAuthStore, useThemeStore, getOnboardingSeen, ensureFreshInstall } from '../src/stores'
+import { useAuthStore, useThemeStore, useReaderFontStore, getOnboardingSeen, ensureFreshInstall } from '../src/stores'
 import { authService } from '../src/services/api'
 
 SplashScreen.preventAutoHideAsync()
@@ -42,6 +42,7 @@ export default function RootLayout() {
         await Promise.all([
           useThemeStore.getState().hydrate(),
           useAuthStore.getState().hydrate(),
+          useReaderFontStore.getState().hydrate(),
         ])
 
         const { accessToken } = useAuthStore.getState()
@@ -115,6 +116,7 @@ export default function RootLayout() {
             <Stack.Screen name="help"    options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="privacy" options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="premium" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="module/create" options={{ presentation: 'modal', headerShown: false }} />
             <Stack.Screen name="quiz/create" options={{ presentation: 'modal', headerShown: false }} />
             <Stack.Screen name="quiz/index"     options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="flashcards/create" options={{ presentation: 'modal', headerShown: false }} />

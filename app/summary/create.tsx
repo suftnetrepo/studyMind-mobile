@@ -63,7 +63,6 @@ export default function CreateSummaryScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Stack horizontal alignItems="center" justifyContent="space-between" paddingHorizontal={20} paddingTop={22} paddingBottom={14}>
           <Stack>
-            <Text variant="overline" color={C.sumColor}>New summary</Text>
             <Text variant="subtitle" color={C.textPrimary} fontWeight="800" numberOfLines={1}>
               {activeCourseCode || activeModuleTitle || 'Summary'}
             </Text>

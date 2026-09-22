@@ -1,6 +1,7 @@
 import React from 'react'
 import Markdown from 'react-native-markdown-display'
 import { useColors } from '../constants'
+import { useReaderFontStore } from '../stores'
 
 interface RichTextProps {
   content: string
@@ -71,8 +72,10 @@ export function preprocessMath(content: string): string {
     .replace(/\$(?!\s)([^$\n]*[^$\s\n])\$(?!\d)/g, (_m, e) => latexToUnicode(e))
 }
 
-export function RichText({ content, fontSize = 14 }: RichTextProps) {
+export function RichText({ content, fontSize: baseFontSize = 14 }: RichTextProps) {
   const C = useColors()
+  const scale = useReaderFontStore((s) => s.scale)
+  const fontSize = Math.round(baseFontSize * scale)
 
   const markdownStyles = {
     body:             { color: C.textPrimary, fontSize, fontFamily: 'PlusJakartaSans_400Regular' },

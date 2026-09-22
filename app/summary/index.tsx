@@ -10,6 +10,8 @@ import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { EmptyState } from '../../src/components/EmptyState'
 import { RichText } from '../../src/components/RichText'
+import { FontSizeButton } from '../../src/components/FontSizeButton'
+import { FontSizePopup } from '../../src/components/FontSizePopup'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { useSummary } from '../../src/hooks'
@@ -61,6 +63,7 @@ export default function SummaryScreen() {
 
   const { summary, summaries, loaded, refreshSummaries, openSummary, closeSummary, deleteSummary } = useSummary(activeModuleId)
   const toast = useToast()
+  const [fontSizeOpen, setFontSizeOpen] = React.useState(false)
 
   // Back from the create screen: open the summary that was just made, otherwise refresh the list.
   const isFocused = useIsFocused()
@@ -182,7 +185,9 @@ export default function SummaryScreen() {
       statusBarStyle={isDark ? 'light-content' : 'dark-content'}
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >
-      <ScreenHeader title="Summary" onBackPress={closeSummary} />
+      <ScreenHeader title="Summary" onBackPress={closeSummary}
+        rightIcon={<FontSizeButton onPress={() => setFontSizeOpen(true)} />}
+      />
 
       <StyledScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
 
@@ -313,6 +318,7 @@ export default function SummaryScreen() {
         </Stack>
 
       </StyledScrollView>
+      <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
     </StyledPage>
   )
 }

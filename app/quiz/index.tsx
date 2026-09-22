@@ -10,6 +10,8 @@ import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { EmptyState } from '../../src/components/EmptyState'
 import { RichText, preprocessMath } from '../../src/components/RichText'
+import { FontSizeButton } from '../../src/components/FontSizeButton'
+import { FontSizePopup } from '../../src/components/FontSizePopup'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { useQuiz } from '../../src/hooks'
@@ -31,6 +33,7 @@ export default function QuizScreen() {
   } = useQuiz(activeModuleId)
 
   const toast = useToast()
+  const [fontSizeOpen, setFontSizeOpen] = React.useState(false)
 
   // Coming back from the create screen: open the quiz that was just made (and refresh the list).
   const isFocused = useIsFocused()
@@ -239,7 +242,9 @@ export default function QuizScreen() {
         statusBarStyle={isDark ? 'light-content' : 'dark-content'}
         statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
       >
-        <ScreenHeader title="Quiz" onBackPress={reset} />
+        <ScreenHeader title="Quiz" onBackPress={reset}
+          rightIcon={<FontSizeButton onPress={() => setFontSizeOpen(true)} />}
+        />
 
         {/* Top bar: question number, chips, timer, bookmark */}
         <Stack horizontal alignItems="center" justifyContent="space-between"
@@ -353,6 +358,7 @@ export default function QuizScreen() {
             </StyledButton>
           )}
         </Stack>
+        <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
       </StyledPage>
     )
   }
@@ -386,7 +392,9 @@ export default function QuizScreen() {
         statusBarStyle={isDark ? 'light-content' : 'dark-content'}
         statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
       >
-        <ScreenHeader title="Quiz results" onBackPress={reset} />
+        <ScreenHeader title="Quiz" onBackPress={reset}
+          rightIcon={<FontSizeButton onPress={() => setFontSizeOpen(true)} />}
+        />
         <ScrollView ref={resultsScroll} showsVerticalScrollIndicator={false}
           contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
         >
@@ -562,6 +570,7 @@ export default function QuizScreen() {
             </StyledButton>
           </Stack>
         </ScrollView>
+        <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
       </StyledPage>
     )
   }
