@@ -7,8 +7,8 @@
 // Must exist as real products in App Store Connect / Play Console and be
 // attached to the "premium" entitlement in the RevenueCat dashboard.
 // App Store Connect prices updated to match:
-// Monthly: £14.99 — com.suftnet.revvo.premium.monthly
-// Yearly:  £89.99 — com.suftnet.revvo.premium.yearly
+// Monthly: $12.99 — com.suftnet.revvo.premium.monthly
+// Yearly:  $79.99 — com.suftnet.revvo.premium.yearly
 // Lifetime: REMOVED
 export const PREMIUM_PRODUCTS = {
   MONTHLY: 'com.suftnet.revvo.premium.monthly',
@@ -17,8 +17,8 @@ export const PREMIUM_PRODUCTS = {
 
 // Fallback strings shown only until RevenueCat's live offering prices load.
 export const PREMIUM_PRICING = {
-  MONTHLY: { price: '£14.99', period: 'per month', label: 'Monthly' },
-  YEARLY:  { price: '£89.99', period: 'per year',  label: 'Yearly', saving: 'Save 50%' },
+  MONTHLY: { price: '$12.99', period: 'per month', label: 'Monthly' },
+  YEARLY:  { price: '$79.99', period: 'per year',  label: 'Yearly', saving: 'Save 49%' },
 } as const
 
 export const PREMIUM_FEATURES = [
