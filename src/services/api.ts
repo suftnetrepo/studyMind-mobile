@@ -3,8 +3,7 @@ import { useAuthStore } from '../stores'
 // ─── Server URL ───────────────────────────────────────────────────────────
 // Production default below. Override for local dev without editing code:
 // EXPO_PUBLIC_API_URL=http://192.168.x.x:8000
-// TODO: Add domain + SSL — currently using IP directly
-export const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://159.89.13.126:8000'
+export const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://api.aismartlearner.com'
 
 class ApiClient {
   private base: string
