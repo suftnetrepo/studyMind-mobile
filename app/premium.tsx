@@ -10,6 +10,7 @@ import { Text } from '../src/components/Text'
 import { ScreenHeader } from '../src/components/ScreenHeader'
 import { useColors, useIsDark } from '../src/constants'
 import { PREMIUM_FEATURES, PREMIUM_PRICING } from '../src/constants/premium'
+import { PRIVACY_POLICY_URL, TERMS_URL } from '../src/constants/app'
 import { usePremium } from '../src/hooks/usePremium'
 import { useAuthStore } from '../src/stores'
 import type { PremiumPlan } from '../src/services/premiumService'
@@ -19,14 +20,6 @@ import type { PremiumPlan } from '../src/services/premiumService'
 // than a separately hand-maintained copy of the same three literals.
 type PlanKey = Exclude<PremiumPlan, null>
 
-// Source: docs/privacy.html and docs/terms.html in this repo — enable
-// GitHub Pages (Settings → Pages → Source: main /docs) to serve these at
-// the URLs below. Until that's turned on, these 404 — check before
-// submitting to either store, both require a working privacy policy URL
-// for an app with subscriptions.
-const PRIVACY_POLICY_URL = 'https://suftnetrepo.github.io/studymind/privacy.html'
-const TERMS_URL           = 'https://suftnetrepo.github.io/studymind/terms.html'
-
 const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))
 
 export default function PremiumScreen() {
@@ -34,8 +27,8 @@ export default function PremiumScreen() {
   const { message, used, limit } = useLocalSearchParams<{ feature?: string; used?: string; limit?: string; message?: string }>()
   const isDark = useIsDark()
   const {
-    isPremium, plan, buyMonthly, buyYearly, buyLifetime, restore, resetForTesting,
-    monthlyPrice, yearlyPrice, lifetimePrice,
+    isPremium, plan, buyMonthly, buyYearly, restore, resetForTesting,
+    monthlyPrice, yearlyPrice,
   } = usePremium()
 
   const user = useAuthStore((s) => s.user)
@@ -49,15 +42,14 @@ export default function PremiumScreen() {
   const [busy, setBusy] = useState(false)
 
   const PLANS: { key: PlanKey; label: string; price: string; period: string; saving?: string }[] = [
-    { key: 'monthly',  label: 'Monthly',  price: monthlyPrice  ?? PREMIUM_PRICING.MONTHLY.price,  period: PREMIUM_PRICING.MONTHLY.period },
-    { key: 'yearly',   label: 'Yearly',   price: yearlyPrice   ?? PREMIUM_PRICING.YEARLY.price,   period: PREMIUM_PRICING.YEARLY.period, saving: PREMIUM_PRICING.YEARLY.saving },
-    { key: 'lifetime', label: 'Lifetime', price: lifetimePrice ?? PREMIUM_PRICING.LIFETIME.price, period: PREMIUM_PRICING.LIFETIME.period },
+    { key: 'yearly',  label: 'Yearly',  price: yearlyPrice  ?? PREMIUM_PRICING.YEARLY.price,  period: PREMIUM_PRICING.YEARLY.period, saving: PREMIUM_PRICING.YEARLY.saving },
+    { key: 'monthly', label: 'Monthly', price: monthlyPrice ?? PREMIUM_PRICING.MONTHLY.price, period: PREMIUM_PRICING.MONTHLY.period },
   ]
 
   const handleContinue = async () => {
     setBusy(true)
     try {
-      const buy = selected === 'monthly' ? buyMonthly : selected === 'yearly' ? buyYearly : buyLifetime
+      const buy = selected === 'monthly' ? buyMonthly : buyYearly
       const ok = await buy()
       if (ok) goBack()
     } finally {
@@ -207,23 +199,15 @@ export default function PremiumScreen() {
               <Text variant="button" color={C.white}>Continue</Text>
             </StyledButton>
 
-            {selected === 'lifetime' && (
-              <Text variant="caption" color={C.textMuted} textAlign="center" style={{ marginBottom: 14 }}>
-                One-time purchase of {PLANS.find((p) => p.key === 'lifetime')!.price}. No subscription. Lifetime access forever.
+            <Stack gap={2} style={{ marginBottom: 14 }}>
+              <Text variant="caption" color={C.textPrimary} fontWeight="600" textAlign="center">
+                {PLANS.find((p) => p.key === selected)!.price}/{selected === 'monthly' ? 'month' : 'year'},
+                {' '}billed {selected === 'monthly' ? 'monthly' : 'annually'}. Auto-renews until cancelled.
               </Text>
-            )}
-
-            {(selected === 'monthly' || selected === 'yearly') && (
-              <Stack gap={2} style={{ marginBottom: 14 }}>
-                <Text variant="caption" color={C.textPrimary} fontWeight="600" textAlign="center">
-                  {PLANS.find((p) => p.key === selected)!.price}/{selected === 'monthly' ? 'month' : 'year'},
-                  {' '}billed {selected === 'monthly' ? 'monthly' : 'annually'}. Auto-renews until cancelled.
-                </Text>
-                <Text variant="caption" color={C.textMuted} textAlign="center">
-                  Cancel anytime in {manageSubscriptionHint}.
-                </Text>
-              </Stack>
-            )}
+              <Text variant="caption" color={C.textMuted} textAlign="center">
+                Cancel anytime in {manageSubscriptionHint}.
+              </Text>
+            </Stack>
 
             {/* Restore & legal */}
             <Stack alignItems="center" gap={8}>
