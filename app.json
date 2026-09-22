@@ -2,7 +2,7 @@
   "expo": {
     "name": "Revvo",
     "slug": "studymind-ai",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.suftnet.revvo",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "NSCameraUsageDescription": "Revvo uses your camera to scan documents and questions.",
         "NSMicrophoneUsageDescription": "Revvo uses your microphone for voice input in the AI tutor.",
