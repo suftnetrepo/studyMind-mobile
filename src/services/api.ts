@@ -1,11 +1,10 @@
 import { useAuthStore } from '../stores'
 
-// ─── Change this to your server URL ─────────────────────────────────────────
-// Local dev: 'http://localhost:8000'  (simulator)
-// Physical device on same WiFi: 'http://192.168.x.x:8000'
-// Production: 'https://your-domain.com'
-// Override without editing code: EXPO_PUBLIC_API_URL=http://192.168.x.x:8000
-export const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000'
+// ─── Server URL ───────────────────────────────────────────────────────────
+// Production default below. Override for local dev without editing code:
+// EXPO_PUBLIC_API_URL=http://192.168.x.x:8000
+// TODO: Add domain + SSL — currently using IP directly
+export const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://159.89.13.126:8000'
 
 class ApiClient {
   private base: string
