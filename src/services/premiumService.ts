@@ -30,10 +30,8 @@ import { PREMIUM_STORAGE_KEY, PREMIUM_ENTITLEMENT_ID, PREMIUM_SHARED_TEST_PROJEC
 // These are RevenueCat's public/client keys (same category as a Stripe
 // publishable key) — they're meant to ship inside the app, not secrets.
 // Revvo's RevenueCat project (Revvo replaces Revvo on the App Store, same bundle id).
-// Android is not set up yet: create the products in Play Console, mirror them in RevenueCat, and
-// paste the "goog_" key here.
 const IOS_API_KEY     = 'appl_XFrjSZnJQHEErLQgJFWwTdgEQlQ'
-const ANDROID_API_KEY = 'goog_REPLACE_WITH_ANDROID_KEY'
+const ANDROID_API_KEY = 'goog_ahpyHxKFukUAjshLjmZaIqROlSo'
 
 const REVENUECAT_API_KEY = Platform.select({
   ios:     IOS_API_KEY,
@@ -91,18 +89,6 @@ let initFailed   = false
 
 export const initializeRevenueCat = async (): Promise<void> => {
   if (initialized || initFailed) return
-
-  // A silently-failed Purchases.configure() (wrong/placeholder key) degrades
-  // to "not premium" forever with nothing in the way of a warning — fine in
-  // dev, not something that should be possible to ship. Same guard as iOS
-  // would need once ANDROID_API_KEY stops being a placeholder for real.
-  if (!__DEV__ && Platform.OS === 'android' && ANDROID_API_KEY === 'goog_REPLACE_WITH_ANDROID_KEY') {
-    initFailed = true
-    throw new Error(
-      '[Premium] ANDROID_API_KEY is still the placeholder. Set it to the real ' +
-      '"goog_" key from the RevenueCat dashboard before shipping an Android build.',
-    )
-  }
 
   try {
     await Purchases.configure({ apiKey: REVENUECAT_API_KEY })
