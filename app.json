@@ -30,6 +30,7 @@
       },
       "package": "com.suftnet.revvo",
       "versionCode": 1,
+      "edgeToEdgeEnabled": false,
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO"
@@ -52,7 +53,8 @@
         }
       ],
       "expo-font",
-      "./plugins/withFmtXcode26Fix"
+      "./plugins/withFmtXcode26Fix",
+      "./plugins/withAndroidReleaseSigning"
     ],
     "scheme": "studymind",
     "experiments": {
