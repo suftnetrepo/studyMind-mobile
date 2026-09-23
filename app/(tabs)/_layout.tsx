@@ -52,7 +52,7 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: C.bgCard,
           borderTopColor:  C.border,
-          borderTopWidth:  0.5,
+          borderTopWidth:  0.1,
           height:          60,
           paddingBottom:   8,
           paddingTop:      6,

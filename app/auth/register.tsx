@@ -6,6 +6,7 @@ import {
   StyledPage, StyledScrollView, Stack, StyledCard, StyledPressable, StyledForm,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
+import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { AuthBackground, BrandMark, GradientButton, EyeToggle, EMAIL_RE } from '../../src/components/AuthUI'
 import { useColors, useIsDark, getFieldColors } from '../../src/constants'
 import { useAuth } from '../../src/hooks'
@@ -71,18 +72,11 @@ export default function RegisterScreen() {
     >
       <AuthBackground />
       {/* Back button only: the icon and form below are laid out like the login screen */}
-      <StyledPressable
-        onPress={goBack}
-        width={44} height={44} borderRadius={22}
-        backgroundColor={C.bgCard} alignItems="center" justifyContent="center"
-        style={{ position: 'absolute', top: Platform.OS === 'ios' ? 56 : 32, left: 20, zIndex: 5, borderWidth: 1, borderColor: C.border }}
-      >
-        <Feather name="arrow-left" size={20} color={C.textPrimary} />
-      </StyledPressable>
+      <ScreenHeader title="" onBackPress={goBack} transparent />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <StyledScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: 70, paddingBottom: 40 }}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: 24, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
