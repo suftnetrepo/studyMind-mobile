@@ -7,6 +7,7 @@ import {
   StyledCard, StyledButton, StyledPressable,
 } from 'fluent-styles'
 import { Text } from '../src/components/Text'
+import { LoadingButton } from '../src/components/LoadingButton'
 import { ScreenHeader } from '../src/components/ScreenHeader'
 import { useColors, useIsDark } from '../src/constants'
 import { PREMIUM_FEATURES, PREMIUM_PRICING } from '../src/constants/premium'
@@ -189,15 +190,13 @@ export default function PremiumScreen() {
               })}
             </Stack>
 
-            <StyledButton
+            <LoadingButton
               block loading={busy}
               backgroundColor={C.primary}
               borderRadius={12} paddingVertical={14}
-              onPress={handleContinue}
+              onPress={handleContinue} label="Continue"
               style={{ marginBottom: 14 }}
-            >
-              <Text variant="button" color={C.white}>Continue</Text>
-            </StyledButton>
+            />
 
             <Stack gap={2} style={{ marginBottom: 14 }}>
               <Text variant="caption" color={C.textPrimary} fontWeight="600" textAlign="center">

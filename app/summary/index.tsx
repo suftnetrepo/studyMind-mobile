@@ -13,7 +13,7 @@ import { RichText } from '../../src/components/RichText'
 import { FontSizeButton } from '../../src/components/FontSizeButton'
 import { FontSizePopup } from '../../src/components/FontSizePopup'
 import { useColors, useIsDark } from '../../src/constants'
-import { useModuleStore } from '../../src/stores'
+import { useModuleStore, useReaderFontStore } from '../../src/stores'
 import { useSummary } from '../../src/hooks'
 import { useIsFocused } from '@react-navigation/native'
 import { takePendingSummary } from '../../src/utils/summaryBridge'
@@ -64,6 +64,7 @@ export default function SummaryScreen() {
   const { summary, summaries, loaded, refreshSummaries, openSummary, closeSummary, deleteSummary } = useSummary(activeModuleId)
   const toast = useToast()
   const [fontSizeOpen, setFontSizeOpen] = React.useState(false)
+  const readerScale = useReaderFontStore((s) => s.scale)
 
   // Back from the create screen: open the summary that was just made, otherwise refresh the list.
   const isFocused = useIsFocused()
@@ -255,9 +256,11 @@ export default function SummaryScreen() {
                       )}
                       {hasTerm ? (
                         <Text variant="body" color={C.textSecondary}
-                          style={{ flex: 1, lineHeight: 22 }}
+                          style={{ flex: 1, fontSize: 14 * readerScale, lineHeight: 22 * readerScale }}
                         >
-                          <Text variant="body" color={C.textPrimary} fontWeight="700">
+                          <Text variant="body" color={C.textPrimary} fontWeight="700"
+                            style={{ fontSize: 14 * readerScale, lineHeight: 22 * readerScale }}
+                          >
                             {line.slice(0, colonIdx)}:{' '}
                           </Text>
                           {line.slice(colonIdx + 1).trim()}

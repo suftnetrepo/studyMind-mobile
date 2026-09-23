@@ -3,9 +3,10 @@ import { Platform, TextInput, KeyboardAvoidingView, TouchableWithoutFeedback, Ke
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import {
-  StyledPage, StyledScrollView, Stack, StyledPressable, StyledButton, useToast,
+  StyledPage, StyledScrollView, Stack, StyledPressable, useToast,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
+import { LoadingButton } from '../../src/components/LoadingButton'
 import { useColors, useIsDark } from '../../src/constants'
 import { moduleService } from '../../src/services/api'
 import { useModules } from '../../src/hooks'
@@ -94,18 +95,15 @@ export default function CreateModuleScreen() {
             </Stack>
 
             <Stack style={{ flex: 1 }} justifyContent="flex-end">
-              <StyledButton
+              <LoadingButton
                 backgroundColor={title.trim() ? C.primary : C.bgMuted}
                 borderRadius={16} paddingVertical={17}
-                disabled={!title.trim() || busy}
                 loading={busy}
-                onPress={create}
+                onPress={title.trim() ? create : () => {}}
+                label="Create module"
+                spinnerColor={title.trim() ? C.white : C.textMuted}
                 style={title.trim() ? { shadowColor: C.primary, shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 8 } : undefined}
-              >
-                <Text variant="button" color={title.trim() ? C.white : C.textMuted}>
-                  {busy ? 'Creating…' : 'Create module'}
-                </Text>
-              </StyledButton>
+              />
             </Stack>
           </StyledScrollView>
         </TouchableWithoutFeedback>

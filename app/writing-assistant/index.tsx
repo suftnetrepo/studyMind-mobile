@@ -8,11 +8,12 @@ import { Audio } from 'expo-av'
 import * as FileSystem from 'expo-file-system'
 import {
   StyledPage, Stack, StyledPressable, StyledCard,
-  StyledButton, useToast, useLoader, useActionSheet,
+  useToast, useLoader, useActionSheet,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { RichText, preprocessMath } from '../../src/components/RichText'
+import { LoadingButton } from '../../src/components/LoadingButton'
 import { FontSizeButton } from '../../src/components/FontSizeButton'
 import { FontSizePopup } from '../../src/components/FontSizePopup'
 import { useColors, useIsDark } from '../../src/constants'
@@ -87,7 +88,6 @@ export default function WritingAssistantScreen() {
     if (!(await quotaGate('smart_writer'))) return
     setGenerating(true)
     setResult('')
-    const loadId = loader.show({ label: 'Writing…', variant: 'dots' })
     try {
       const res = await writingService.generate({
         mode,
@@ -106,7 +106,6 @@ export default function WritingAssistantScreen() {
     } catch (e: any) {
       toast.error('Generation failed', e.message)
     } finally {
-      loader.hide(loadId)
       setGenerating(false)
     }
   }
@@ -277,7 +276,7 @@ export default function WritingAssistantScreen() {
 
       <Stack
         horizontal backgroundColor={C.bgCard} borderRadius={24} padding={4}
-        marginHorizontal={16} marginTop={8} marginBottom={4}
+        marginHorizontal={16} marginTop={16} marginBottom={4}
         style={{ borderWidth: 1, borderColor: C.border }}
       >
         {MODES.map((m) => {
@@ -458,18 +457,16 @@ export default function WritingAssistantScreen() {
             </Stack>
           )}
 
-          <StyledButton
+          <LoadingButton
             backgroundColor={C.primary} borderRadius={16} paddingVertical={16}
             marginBottom={result ? 20 : 0}
             loading={generating}
-            onPress={handleGenerate}
+            onPress={handleGenerate} label="Generate"
             style={{
               shadowColor: C.primary, shadowOpacity: 0.35,
               shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 7,
             }}
-          >
-            <Text variant="button" color={C.white}>{generating ? 'Writing…' : 'Generate'}</Text>
-          </StyledButton>
+          />
 
           {result !== '' && (
             <StyledPressable onPress={() => setSheetOpen(true)} style={{ alignSelf: 'center', marginTop: 14 }}>

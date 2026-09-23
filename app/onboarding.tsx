@@ -246,7 +246,7 @@ export default function OnboardingScreen() {
           >
             <Hero kind={slide.hero} icon={slide.icon} accent={slide.accent} />
             <Text variant="header" color={C.textPrimary} fontWeight="800" textAlign="center"
-              style={{ marginBottom: 12, fontSize: 28, lineHeight: 34 }}
+              style={{ marginBottom: 12, marginHorizontal: 24, fontSize: 28, lineHeight: 34 }}
             >
               {slide.title}
             </Text>

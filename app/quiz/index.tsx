@@ -11,6 +11,7 @@ import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { EmptyState } from '../../src/components/EmptyState'
 import { RichText, preprocessMath } from '../../src/components/RichText'
 import { FontSizeButton } from '../../src/components/FontSizeButton'
+import { LoadingButton } from '../../src/components/LoadingButton'
 import { FontSizePopup } from '../../src/components/FontSizePopup'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
@@ -343,12 +344,11 @@ export default function QuizScreen() {
             <Text variant="button" color={C.textPrimary}>Previous</Text>
           </StyledButton>
           {isLast ? (
-            <StyledButton
+            <LoadingButton
               backgroundColor={C.textPrimary} borderRadius={100} paddingVertical={16} flex={1}
-              loading={submitting} onPress={submit}
-            >
-              <Text variant="button" color={C.bg}>Submit quiz</Text>
-            </StyledButton>
+              loading={submitting} onPress={submit} label="Submit quiz"
+              spinnerColor={C.bg}
+            />
           ) : (
             <StyledButton
               backgroundColor={C.textPrimary} borderRadius={100} paddingVertical={16} flex={1}
@@ -456,11 +456,11 @@ export default function QuizScreen() {
 
           {/* Detailed analysis */}
           <Stack horizontal alignItems="center" justifyContent="space-between" marginBottom={14}>
-            <Text variant="subtitle" color={C.textPrimary} fontWeight="800">Detailed question analysis</Text>
+            <Text variant="subtitle" color={C.textPrimary} fontWeight="800"></Text>
             <StyledPressable hitSlop={8} onPress={() =>
               setOpen(allOpen ? {} : Object.fromEntries(results.questions.map((q: any) => [q.id, true])))
             }>
-              <Text variant="bodySmall" color={C.primary} fontWeight="700">{allOpen ? 'Collapse all' : 'Expand all'}</Text>
+              <Text paddingHorizontal={16} variant="bodySmall" color={C.primary} fontWeight="700">{allOpen ? 'Collapse all' : 'Expand all'}</Text>
             </StyledPressable>
           </Stack>
 

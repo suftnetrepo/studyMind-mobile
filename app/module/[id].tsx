@@ -1,6 +1,7 @@
 import React from 'react'
 import { Platform } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
+import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
@@ -16,6 +17,7 @@ import { useModuleStore, useAuthStore } from '../../src/stores'
 import { useModuleDetail } from '../../src/hooks'
 import { chatService, moduleService } from '../../src/services/api'
 import { ToolArt, LaptopArt, type ToolArtKind } from '../../src/components/ToolArt'
+import { LoadingButton } from '../../src/components/LoadingButton'
 
 type TabKey = 'overview' | 'documents' | 'chat'
 const TABS: TabItem<TabKey>[] = [
@@ -78,13 +80,12 @@ function PendingDocCard({
             <Feather name="trash-2" size={16} color={C.textMuted} />
           </StyledPressable>
         )}
-        <StyledButton
+        <LoadingButton
           backgroundColor={C.warning} borderRadius={10}
           paddingHorizontal={14} paddingVertical={9}
-          loading={syncing} onPress={onSync}
-        >
-          <Text variant="caption" color={C.white} fontWeight="700">Sync now</Text>
-        </StyledButton>
+          loading={syncing} onPress={onSync} label="Sync now"
+          textVariant="caption" fontWeight="700"
+        />
       </Stack>
       <Text variant="caption" color={C.textSecondary} style={{ fontSize: 11, marginTop: 8 }}>
         The AI Tutor can't see this yet. Tap Sync now to add it to what it knows for this module.
@@ -109,6 +110,17 @@ export default function ModuleDetailScreen() {
   const loader = useLoader()
   const actionSheet = useActionSheet()
   const dialogue = useDialogue()
+
+  // The screen stays mounted (just unfocused) while chatting/syncing elsewhere in
+  // the stack, so its mount-time fetch alone never picks up a session created — or
+  // a document synced — after that point. Refetch whenever this screen regains focus.
+  const focused = useIsFocused()
+  const skipFirstFocus = React.useRef(true)
+  React.useEffect(() => {
+    if (!focused) return
+    if (skipFirstFocus.current) { skipFirstFocus.current = false; return }
+    refetch()
+  }, [focused]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const classDocs = documents.filter((d) => d.visibility === 'class')
   const myNotes   = documents.filter((d) => d.visibility === 'personal')
@@ -240,7 +252,7 @@ export default function ModuleDetailScreen() {
       <TabBar
         options={TABS} value={tab} onChange={setTab}
         indicator="line" showBorder tabAlign="center"
-        style={{ marginTop: 8, marginHorizontal: 16 }}
+        style={{ marginHorizontal: 16, marginTop:16 }}
         colors={{
           background:  C.bgCard,
           activeText:  C.primary,

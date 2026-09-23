@@ -34,7 +34,7 @@ export function usePremium() {
   const buy = useCallback(
     async (purchaseFn: () => Promise<boolean>) => {
       try {
-        const activated = await loaderService.wrap(purchaseFn, { label: 'Processing…', variant: 'spinner' })
+        const activated = await purchaseFn()
         await refresh()
         if (!activated) {
           toastService.error('Purchase pending', 'It may take a moment to activate — pull to refresh or reopen the app.')

@@ -5,10 +5,11 @@ import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import {
   StyledPage, StyledScrollView, Stack,
-  StyledCard, StyledPressable, StyledButton, TabBar, type TabItem,
+  StyledCard, StyledPressable, TabBar, type TabItem,
   useActionSheet, useToast, useDialogue,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
+import { LoadingButton } from '../../src/components/LoadingButton'
 import { useColors, useIsDark, getModuleColors } from '../../src/constants'
 import { useModuleStore, useAuthStore } from '../../src/stores'
 import { useModules } from '../../src/hooks'
@@ -45,19 +46,14 @@ function JoinCodeForm({
             style={{ color: colors.textPrimary, fontSize: 16 }}
           />
         </Stack>
-        <StyledButton
+        <LoadingButton
           backgroundColor={code.trim() ? colors.primary : colors.bgMuted}
           borderRadius={12} paddingVertical={13}
-          disabled={!code.trim() || submitting}
           loading={submitting}
-          onPress={() => onSubmit(code.trim())}
-        >
-          <Text variant="label" color={code.trim() ? colors.white : colors.textMuted}
-            fontWeight="700" textAlign="center"
-          >
-            Join module
-          </Text>
-        </StyledButton>
+          onPress={code.trim() ? () => onSubmit(code.trim()) : () => {}}
+          label="Join module" textVariant="label" fontWeight="700"
+          spinnerColor={code.trim() ? colors.white : colors.textMuted}
+        />
       </Stack>
     </KeyboardAvoidingView>
   )
@@ -217,7 +213,7 @@ export default function ModulesScreen() {
       <TabBar
         options={TABS} value={filter} onChange={setFilter}
         indicator="line" showBorder tabAlign="center"
-        style={{ marginHorizontal: 16, marginTop: 8 }}
+        style={{ marginHorizontal: 16, marginTop: 16 }}
         colors={{
           background: C.bgCard, activeText: C.primary,
           indicator: C.primary, text: C.textSecondary, border: C.border,
@@ -225,11 +221,11 @@ export default function ModulesScreen() {
       />
 
       <StyledScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} colors={[C.primary]} />}
       >
         {loading && (
-          <Stack gap={10} marginTop={8}>
+          <Stack gap={10}>
             {[1, 2, 3].map((i) => (
               <Stack key={i} height={88} backgroundColor={C.bgMuted} borderRadius={18}
                 style={{ opacity: 0.4 }}
@@ -259,7 +255,7 @@ export default function ModulesScreen() {
           </Stack>
         )}
 
-        <Stack gap={10} marginTop={8}>
+        <Stack gap={10}>
           {filtered.map((mod, idx) => {
             const mc = getModuleColors(C, idx)
             return (

@@ -16,10 +16,6 @@ import { getQuotaStatus } from '../../src/utils/quota'
 
 type Icon = keyof typeof Feather.glyphMap
 
-const ROLE_LABEL: Record<string, string> = {
-  student: 'Student', lecturer: 'Lecturer', self_learner: 'Self-learner', admin: 'Administrator',
-}
-
 const APPEARANCE: { mode: ThemeMode; label: string; icon: Icon }[] = [
   { mode: 'light',  label: 'Light',  icon: 'sun'     },
   { mode: 'dark',   label: 'Dark',   icon: 'moon'    },
@@ -44,7 +40,6 @@ export default function SettingsScreen() {
   const { logout, deleteAccount } = useAuth()
 
   const isSelfLearner = user?.role === 'self_learner'
-  const initial = (user?.full_name?.trim().charAt(0) || 'S').toUpperCase()
 
   const [quotaData, setQuotaData] = React.useState<Record<string, { used: number; limit: number }> | null>(null)
   const isFocused = useIsFocused()
@@ -148,38 +143,6 @@ export default function SettingsScreen() {
               </StyledCard>
             </StyledPressable>
         )}
-
-        {/* Profile: opens the separate Profile screen */}
-        <StyledPressable onPress={() => router.push('/profile' as any)} style={{ marginBottom: 12 }}>
-          <StyledCard backgroundColor={C.bgCard} borderRadius={18} padding={16}
-            style={{ borderWidth: 1, borderColor: C.border }}
-          >
-            <Stack horizontal alignItems="center" gap={14}>
-              <Stack width={52} height={52} borderRadius={26} backgroundColor={C.primaryBg}
-                alignItems="center" justifyContent="center"
-                style={{ borderWidth: 2, borderColor: `${C.primary}40` }}
-              >
-                <Text variant="title" color={C.primary} fontWeight="800">{initial}</Text>
-              </Stack>
-              <Stack flex={1}>
-                <Text variant="subtitle" color={C.textPrimary} fontWeight="700" numberOfLines={1}>
-                  {user?.full_name || 'Your profile'}
-                </Text>
-                <Text variant="caption" color={C.textSecondary} numberOfLines={1} style={{ marginTop: 2 }}>
-                  {user?.email}
-                </Text>
-                <Stack horizontal alignItems="center" gap={5} backgroundColor={C.primaryBg} borderRadius={10}
-                  paddingHorizontal={8} paddingVertical={3} style={{ alignSelf: 'flex-start', marginTop: 6 }}
-                >
-                  <Text variant="caption" color={C.primary} fontWeight="700" style={{ fontSize: 10 }}>
-                    {ROLE_LABEL[user?.role || 'student']}
-                  </Text>
-                </Stack>
-              </Stack>
-              <Feather name="chevron-right" size={18} color={C.textMuted} />
-            </Stack>
-          </StyledCard>
-        </StyledPressable>
 
         {isSelfLearner && !isPremium && quotaData && (
               <StyledCard backgroundColor={C.bgCard} borderRadius={16} padding={16}

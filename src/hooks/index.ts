@@ -169,7 +169,6 @@ export function useModuleDetail(moduleId: string | null) {
   const [loading,   setLoading]   = useState(false)
   const toast    = useToast()
   const dialogue = useDialogue()
-  const loader   = useLoader()
   const notification = useNotification()
 
   const fetch = useCallback(async () => {
@@ -198,10 +197,8 @@ export function useModuleDetail(moduleId: string | null) {
     visibility: 'class' | 'personal' = 'class',
   ) => {
     if (!moduleId) return false
-    const loadId = loader.show({ label: 'Uploading…', variant: 'dots' })
     try {
       await moduleService.uploadDocument(moduleId, file, visibility)
-      loader.hide(loadId)
       notification.show({
         title:  'Document indexed',
         body:   `${file.name} was uploaded and indexed successfully.`,
@@ -213,7 +210,6 @@ export function useModuleDetail(moduleId: string | null) {
       await fetch()
       return true
     } catch (e: any) {
-      loader.hide(loadId)
       toast.error('Upload failed', e.message)
       return false
     }
@@ -522,7 +518,6 @@ export function useQuiz(moduleId?: string | null) {
       return
     }
     setSubmitting(true)
-    const loadId = loader.show({ label: 'Submitting…', variant: 'spinner' })
     try {
       const answersArr = Object.entries(answers).map(([question_id, answer]) => ({ question_id, answer }))
       const res = await quizService.submit(attempt.id, answersArr)
@@ -545,7 +540,6 @@ export function useQuiz(moduleId?: string | null) {
     } catch (e: any) {
       toast.error('Submission failed', e.message)
     } finally {
-      loader.hide(loadId)
       setSubmitting(false)
     }
   }

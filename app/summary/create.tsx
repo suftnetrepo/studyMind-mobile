@@ -3,9 +3,10 @@ import { Platform, TextInput, KeyboardAvoidingView } from 'react-native'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import {
-  StyledPage, StyledScrollView, Stack, StyledPressable, StyledButton, useToast, useLoader,
+  StyledPage, StyledScrollView, Stack, StyledPressable, useToast,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
+import { LoadingButton } from '../../src/components/LoadingButton'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { summaryService } from '../../src/services/api'
@@ -26,7 +27,6 @@ export default function CreateSummaryScreen() {
   const C      = useColors()
   const isDark = useIsDark()
   const toast  = useToast()
-  const loader = useLoader()
   const { activeModuleId, activeCourseCode, activeModuleTitle } = useModuleStore()
 
   const [scope, setScope] = useState<Scope>('module')
@@ -42,7 +42,6 @@ export default function CreateSummaryScreen() {
     }
     if (!(await quotaGate('summary'))) return
     setBusy(true)
-    const loadId = loader.show({ label: 'Creating summary…', variant: 'dots' })
     try {
       const res = await summaryService.generate(activeModuleId, scope, topic.trim() || undefined)
       await incrementQuota('summary')
@@ -51,7 +50,6 @@ export default function CreateSummaryScreen() {
     } catch (e: any) {
       toast.error('Could not create summary', e.message)
     } finally {
-      loader.hide(loadId)
       setBusy(false)
     }
   }
@@ -119,12 +117,10 @@ export default function CreateSummaryScreen() {
             <Text variant="caption" color={C.textSecondary}>Leave blank to cover everything in scope</Text>
           </Stack>
 
-          <StyledButton backgroundColor={C.sumColor} borderRadius={16} paddingVertical={17}
-            loading={busy} onPress={create}
+          <LoadingButton backgroundColor={C.sumColor} borderRadius={16} paddingVertical={17}
+            loading={busy} onPress={create} label="Create summary"
             style={{ shadowColor: C.sumColor, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 8 }}
-          >
-            <Text variant="button" color={C.white}>{busy ? 'Creating summary…' : 'Create summary'}</Text>
-          </StyledButton>
+          />
         </StyledScrollView>
       </KeyboardAvoidingView>
     </StyledPage>

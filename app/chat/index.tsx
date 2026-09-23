@@ -380,7 +380,7 @@ export default function ChatScreen() {
       <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
 
       {/* Complexity level */}
-      <Stack horizontal paddingHorizontal={20} paddingTop={4} paddingBottom={8} gap={8}>
+      <Stack horizontal paddingHorizontal={20} paddingTop={16} paddingBottom={8} gap={8}>
         {COMPLEXITY_LEVELS.map((level) => {
           const active = complexity === level.key
           return (

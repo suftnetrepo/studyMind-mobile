@@ -201,7 +201,7 @@ export default function NoteEditorScreen() {
         const isSyncing = syncingId === note.id
         const synced    = !!note.synced
         return (
-          <Stack horizontal alignItems="center" gap={10} paddingHorizontal={20} paddingTop={8} paddingBottom={10}>
+          <Stack horizontal alignItems="center" gap={10} paddingHorizontal={20} paddingTop={16} paddingBottom={10}>
             <StyledPressable onPress={flushSave} hitSlop={6}>
               <Stack horizontal alignItems="center" gap={7} borderRadius={100}
                 paddingHorizontal={14} paddingVertical={8}

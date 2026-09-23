@@ -3,9 +3,10 @@ import { Platform, TextInput, KeyboardAvoidingView } from 'react-native'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import {
-  StyledPage, StyledScrollView, Stack, StyledPressable, StyledButton, useToast, useLoader,
+  StyledPage, StyledScrollView, Stack, StyledPressable, useToast,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
+import { LoadingButton } from '../../src/components/LoadingButton'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { flashcardService } from '../../src/services/api'
@@ -20,7 +21,6 @@ export default function CreateDeckScreen() {
   const C      = useColors()
   const isDark = useIsDark()
   const toast  = useToast()
-  const loader = useLoader()
   const { activeModuleId, activeCourseCode, activeModuleTitle } = useModuleStore()
 
   const [maxCards, setMaxCards] = useState<number>(20)
@@ -36,7 +36,6 @@ export default function CreateDeckScreen() {
     }
     if (!(await quotaGate('flashcard'))) return
     setBusy(true)
-    const loadId = loader.show({ label: 'Creating flashcards…', variant: 'dots' })
     try {
       const res = await flashcardService.generate(activeModuleId, maxCards, topic.trim() || undefined)
       await incrementQuota('flashcard')
@@ -45,7 +44,6 @@ export default function CreateDeckScreen() {
     } catch (e: any) {
       toast.error('Could not create flashcards', e.message)
     } finally {
-      loader.hide(loadId)
       setBusy(false)
     }
   }
@@ -100,12 +98,10 @@ export default function CreateDeckScreen() {
             <Text variant="caption" color={C.textSecondary}>Leave blank to cover everything in this module</Text>
           </Stack>
 
-          <StyledButton backgroundColor={C.flashColor} borderRadius={16} paddingVertical={17}
-            loading={busy} onPress={create}
+          <LoadingButton backgroundColor={C.flashColor} borderRadius={16} paddingVertical={17}
+            loading={busy} onPress={create} label={`Create ${maxCards} flashcards`}
             style={{ shadowColor: C.flashColor, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 8 }}
-          >
-            <Text variant="button" color={C.white}>{busy ? 'Creating flashcards…' : `Create ${maxCards} flashcards`}</Text>
-          </StyledButton>
+          />
         </StyledScrollView>
       </KeyboardAvoidingView>
     </StyledPage>
