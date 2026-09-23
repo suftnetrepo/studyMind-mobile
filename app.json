@@ -28,7 +28,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B1225"
       },
-      "package": "com.suftnet.studymind",
+      "package": "com.suftnet.revvo",
       "versionCode": 1,
       "permissions": [
         "CAMERA",
