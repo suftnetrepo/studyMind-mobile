@@ -29,7 +29,7 @@
         "backgroundColor": "#0B1225"
       },
       "package": "com.suftnet.revvo",
-      "versionCode": 2,
+      "versionCode": 3,
       "edgeToEdgeEnabled": false,
       "permissions": [
         "CAMERA",
