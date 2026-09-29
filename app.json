@@ -63,7 +63,8 @@
         }
       ],
       "./plugins/withFmtXcode26Fix",
-      "./plugins/withAndroidReleaseSigning"
+      "./plugins/withAndroidReleaseSigning",
+      "react-native-document-scanner-plugin"
     ],
     "scheme": "studymind",
     "experiments": {

@@ -5,6 +5,7 @@ import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
+import * as FileSystem from 'expo-file-system'
 import {
   StyledPage, StyledScrollView, Stack,
   StyledCard, StyledPressable, StyledButton, TabBar, type TabItem, useToast, useLoader, useActionSheet, useDialogue,
@@ -12,6 +13,7 @@ import {
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { quotaGate, incrementQuota } from '../../src/utils/quota'
+import { scanPages, extractScanText } from '../../src/utils/documentScanner'
 import { useColors, useIsDark, TOOLS } from '../../src/constants'
 import { useModuleStore, useAuthStore } from '../../src/stores'
 import { useModuleDetail } from '../../src/hooks'
@@ -225,6 +227,45 @@ export default function ModuleDetailScreen() {
         source === 'camera' ? 'Camera unavailable' : 'Could not open gallery',
         source === 'camera' ? 'Use "Choose from gallery" on a simulator.' : e.message,
       )
+    }
+  }
+
+  // Native multi-page scanner → OCR each page → one personal document, via
+  // the same pending/confirm/sync flow as an uploaded file.
+  const handleScanDocument = async () => {
+    let pages: string[] | null
+    try {
+      pages = await scanPages()
+    } catch (e: any) {
+      toast.error('Scanner unavailable', e?.message || 'Use "Scan a page" instead.')
+      return
+    }
+    if (!pages) return
+    if (!(await quotaGate('scan_image'))) return
+    const loadId = loader.show({
+      label: pages.length > 1 ? `Reading ${pages.length} pages…` : 'Reading page…',
+      variant: 'dots',
+    })
+    try {
+      const text = await extractScanText(pages)
+      await incrementQuota('scan_image')
+      if (!text.trim()) {
+        toast.warning('No text found', 'Try again with the pages in clear view.')
+        return
+      }
+      // Uploaded as a .txt file rather than pasted: /documents/paste caps content
+      // at 50k characters, which a dense 20-page scan can exceed.
+      const name = `Scanned_${pages.length}_page${pages.length > 1 ? 's' : ''}_${new Date().toISOString().slice(0, 10)}.txt`
+      const uri  = `${FileSystem.cacheDirectory}scan_${Date.now()}.txt`
+      await FileSystem.writeAsStringAsync(uri, text)
+      const pending: PendingDoc = { id: `pending-${Date.now()}`, name, visibility: 'personal', source: 'file', uri, type: 'text/plain' }
+      setPendingDocs((prev) => [pending, ...prev])
+      setTab('documents')
+      syncPendingDoc(pending)
+    } catch (e: any) {
+      toast.error('Could not read scan', e.message)
+    } finally {
+      loader.hide(loadId)
     }
   }
 
@@ -658,6 +699,7 @@ export default function ModuleDetailScreen() {
             actionSheet.show({
               title: 'Add to this module',
               items: [
+                { icon: '🧾', label: 'Scan document', onPress: handleScanDocument },
                 { icon: '📷', label: 'Scan a page',   onPress: handleScan },
                 { icon: '📄', label: 'Upload a file', onPress: () => handleUpload('personal') },
               ],

@@ -12,6 +12,7 @@ import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { RichText } from '../../src/components/RichText'
 import { quotaGate, incrementQuota } from '../../src/utils/quota'
+import { scanPages, extractScanText } from '../../src/utils/documentScanner'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { useChat, type ChatMessage, type ScopeMode, type ComplexityLevel } from '../../src/hooks'
@@ -142,6 +143,43 @@ export default function ChatScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({ ...options, allowsMultipleSelection: false })
       if (result.canceled || !result.assets[0]) return
       await processImage(result.assets[0])
+    }
+  }
+
+  // ── Multi-page document scan: native scanner → OCR each page → text ─────────
+  const handleScanDocument = async () => {
+    let pages: string[] | null
+    try {
+      pages = await scanPages()
+    } catch (e: any) {
+      toast.error('Scanner unavailable', e?.message || 'Use "Take a photo" instead.')
+      return
+    }
+    if (!pages) return
+    if (!(await quotaGate('scan_image'))) return
+    const loadId = loader.show({
+      label: pages.length > 1 ? `Reading ${pages.length} pages…` : 'Reading page…',
+      variant: 'dots',
+    })
+    setBusy(true)
+    try {
+      const text = await extractScanText(pages)
+      await incrementQuota('scan_image')
+      if (!text.trim()) {
+        toast.warning('No text found', 'Try again with the pages in clear view.')
+        return
+      }
+      if (text.length > LONG_SCAN_CHARS) {
+        offerLongScan(text)
+      } else {
+        appendToInput(text)
+        toast.success('Text extracted!', 'Review and edit before sending.')
+      }
+    } catch (e: any) {
+      toast.error('Could not read scan', e.message)
+    } finally {
+      loader.hide(loadId)
+      setBusy(false)
     }
   }
 
@@ -459,6 +497,16 @@ export default function ChatScreen() {
             style={{ opacity: busy || isRecording || sending ? 0.4 : 1 }}
           >
             <Feather name="camera" size={19} color={C.textPrimary} />
+          </StyledPressable>
+          <StyledPressable
+            width={40} height={46} borderRadius={14}
+            backgroundColor={C.bgMuted}
+            alignItems="center" justifyContent="center"
+            onPress={handleScanDocument}
+            disabled={busy || isRecording || sending}
+            style={{ opacity: busy || isRecording || sending ? 0.4 : 1 }}
+          >
+            <Feather name="file-text" size={18} color={C.textPrimary} />
           </StyledPressable>
           <StyledPressable
             width={40} height={46} borderRadius={14}
