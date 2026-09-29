@@ -33,9 +33,22 @@ export async function scanPages(): Promise<{ pages: string[]; dropped: number } 
   })
   if (status === 'cancel' || !scannedImages?.length) return null
   // VisionKit can't be capped, so trim here to keep OCR cost and quota bounded.
+  deleteScanPages(scannedImages.slice(maxPages))
   return {
     pages:   scannedImages.slice(0, maxPages),
     dropped: Math.max(0, scannedImages.length - maxPages),
+  }
+}
+
+const toFileUri = (path: string) => (path.startsWith('/') ? `file://${path}` : path)
+
+/**
+ * Deletes scanned page images. The iOS plugin writes them to the Documents
+ * directory (iCloud-backed, never cleared), so they must be removed once read.
+ */
+export function deleteScanPages(pageUris: string[]) {
+  for (const p of pageUris) {
+    FileSystem.deleteAsync(toFileUri(p), { idempotent: true }).catch(() => {})
   }
 }
 
@@ -53,18 +66,12 @@ export async function writeScanFile(text: string, pageCount: number) {
 
 /**
  * OCR every page, in order, charging one scan_image quota hit per page read.
- * Pages with no readable text are skipped; the result is empty if none had
- * any. `onPage` reports progress (1-based).
+ * Pages with no readable text are skipped; the result is empty if none had any.
  */
-export async function extractScanText(
-  pageUris: string[],
-  onPage?: (page: number, total: number) => void,
-): Promise<string> {
+export async function extractScanText(pageUris: string[]): Promise<string> {
   const parts: string[] = []
   for (let i = 0; i < pageUris.length; i++) {
-    onPage?.(i + 1, pageUris.length)
-    const uri    = !pageUris[i].startsWith('/') ? pageUris[i] : `file://${pageUris[i]}`
-    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 })
+    const base64 = await FileSystem.readAsStringAsync(toFileUri(pageUris[i]), { encoding: FileSystem.EncodingType.Base64 })
     const { text } = await chatService.extractFromImage(base64, 'image/jpeg')
     await incrementQuota('scan_image')
     if (!text?.trim()) continue

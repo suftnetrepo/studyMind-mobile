@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useToast, useLoader } from 'fluent-styles'
-import { scanPages, extractScanText } from '../utils/documentScanner'
+import { scanPages, extractScanText, deleteScanPages } from '../utils/documentScanner'
 
 // Multi-page scan → OCR text, with the loader and toasts every screen shows.
 // Quota is checked before the scanner opens and charged per page (see
@@ -39,6 +39,7 @@ export function useDocumentScan() {
       return null
     } finally {
       loader.hide(loadId)
+      deleteScanPages(pages)
     }
   }, [toast, loader])
 

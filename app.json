@@ -2,7 +2,7 @@
   "expo": {
     "name": "Revvo",
     "slug": "studymind-ai",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -21,7 +21,10 @@
         "NSMicrophoneUsageDescription": "Revvo uses your microphone for voice input in the AI tutor.",
         "NSPhotoLibraryUsageDescription": "Revvo accesses your photo library to scan documents and questions."
       },
-      "appleTeamId": "ZQADUF26X5"
+      "appleTeamId": "ZQADUF26X5",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -38,7 +41,12 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       [
         "expo-sqlite",
         {
