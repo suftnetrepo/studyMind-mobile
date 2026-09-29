@@ -40,6 +40,18 @@ export async function scanPages(): Promise<{ pages: string[]; dropped: number } 
 }
 
 /**
+ * Writes scanned text to a cached .txt for moduleService.uploadDocument.
+ * Uploading beats /documents/paste, which caps content at 50k characters —
+ * a dense 20-page scan can exceed that. Indexed the same way either way.
+ */
+export async function writeScanFile(text: string, pageCount: number) {
+  const name = `Scanned_${pageCount}_page${pageCount > 1 ? 's' : ''}_${new Date().toISOString().slice(0, 10)}.txt`
+  const uri  = `${FileSystem.cacheDirectory}scan_${Date.now()}.txt`
+  await FileSystem.writeAsStringAsync(uri, text)
+  return { uri, name, type: 'text/plain' }
+}
+
+/**
  * OCR every page, in order, charging one scan_image quota hit per page read.
  * Pages with no readable text are skipped; the result is empty if none had
  * any. `onPage` reports progress (1-based).

@@ -15,6 +15,8 @@ import { useColors, useIsDark, getFieldColors } from '../../src/constants'
 import { moduleService, chatService } from '../../src/services/api'
 import { useAuthStore, useModuleStore, setSetupDone } from '../../src/stores'
 import { quotaGate, incrementQuota } from '../../src/utils/quota'
+import { writeScanFile } from '../../src/utils/documentScanner'
+import { useDocumentScan } from '../../src/hooks/useDocumentScan'
 
 const EMOJIS = ['📖', '🐍', '📐', '💻', '🌍', '🔬', '🎨', '🏛️', '⚡', '🧠', '🎵', '📊']
 const LEVELS = [
@@ -36,6 +38,7 @@ export default function SelfLearnerSetup() {
   const isDark = useIsDark()
   const toast  = useToast()
   const loader = useLoader()
+  const { scanToText } = useDocumentScan()
   const actionSheet = useActionSheet()
   const user   = useAuthStore((s) => s.user)
   const { setActiveModule } = useModuleStore()
@@ -145,10 +148,31 @@ export default function SelfLearnerSetup() {
     }
   }
 
+  // Multi-page native scan → one personal document, uploaded as .txt (see writeScanFile).
+  const scanDocument = async () => {
+    if (!moduleId) return
+    const scan = await scanToText()
+    if (!scan) return
+    const loadId = loader.show({ label: 'Saving…', variant: 'dots' })
+    try {
+      await moduleService.uploadDocument(moduleId, await writeScanFile(scan.text, scan.pageCount), 'personal')
+      setHasContent(true)
+      toast.success(
+        'Document scanned!',
+        `${scan.pageCount > 1 ? `${scan.pageCount} pages` : 'Page'} saved and indexed. Scan more or continue.`,
+      )
+    } catch (e: any) {
+      toast.error('Could not save scan', e.message)
+    } finally {
+      loader.hide(loadId)
+    }
+  }
+
   const handleScan = () =>
     actionSheet.show({
       title: 'Scan a document',
       items: [
+        { icon: '🧾', label: 'Scan document (multi-page)', onPress: scanDocument },
         { icon: '📷', label: 'Take a photo',        onPress: () => scanFrom('camera')  },
         { icon: '🖼️', label: 'Choose from gallery', onPress: () => scanFrom('gallery') },
       ],
@@ -275,7 +299,7 @@ export default function SelfLearnerSetup() {
                 <OptionCard icon="clipboard" tone="quiz" title="Paste text" desc="Article, notes or transcript"
                   onPress={() => router.push({ pathname: '/setup/paste-text', params: { moduleId: moduleId || '' } })}
                 />
-                <OptionCard icon="camera" tone="flash" title="Scan a document" desc="Photo of a page or notes" onPress={handleScan} />
+                <OptionCard icon="camera" tone="flash" title="Scan a document" desc="Scan pages or snap a photo of notes" onPress={handleScan} />
                 <OptionCard icon="cpu" title="Generate with AI" desc="AI creates a study guide" dark onPress={() => setStep('generate')} />
               </Stack>
               <StyledButton backgroundColor={C.bgCard} borderRadius={16} paddingVertical={14}

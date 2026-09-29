@@ -12,12 +12,12 @@ import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { RichText } from '../../src/components/RichText'
 import { quotaGate, incrementQuota } from '../../src/utils/quota'
-import { scanPages, extractScanText } from '../../src/utils/documentScanner'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { useChat, type ChatMessage, type ScopeMode, type ComplexityLevel } from '../../src/hooks'
 import { chatService } from '../../src/services/api'
 import { useNotes } from '../../src/hooks/useNotes'
+import { useDocumentScan } from '../../src/hooks/useDocumentScan'
 import { copyToClipboard, shareText, formatConversationForExport } from '../../src/utils/share'
 import { TypingDots } from '../../src/components/TypingDots'
 import { FontSizeButton } from '../../src/components/FontSizeButton'
@@ -49,6 +49,7 @@ export default function ChatScreen() {
   const toast        = useToast()
   const loader       = useLoader()
   const { createNote, updateNote } = useNotes(activeModuleId || null)
+  const { scanToText } = useDocumentScan()
 
   const [input, setInput] = React.useState('')
   const [fontSizeOpen, setFontSizeOpen] = React.useState(false)
@@ -148,40 +149,15 @@ export default function ChatScreen() {
 
   // ── Multi-page document scan: native scanner → OCR each page → text ─────────
   const handleScanDocument = async () => {
-    let scan: Awaited<ReturnType<typeof scanPages>>
-    try {
-      scan = await scanPages()
-    } catch (e: any) {
-      toast.error('Scanner unavailable', e?.message || 'Use "Take a photo" instead.')
-      return
-    }
-    if (!scan) return
-    const { pages, dropped } = scan
-    if (dropped > 0) {
-      toast.info(`Only ${pages.length} page${pages.length > 1 ? 's' : ''} read`, `${dropped} over today's limit ${dropped > 1 ? 'were' : 'was'} skipped.`)
-    }
-    const loadId = loader.show({
-      label: pages.length > 1 ? `Reading ${pages.length} pages…` : 'Reading page…',
-      variant: 'dots',
-    })
     setBusy(true)
-    try {
-      const text = await extractScanText(pages)   // charges quota per page
-      if (!text.trim()) {
-        toast.warning('No text found', 'Try again with the pages in clear view.')
-        return
-      }
-      if (text.length > LONG_SCAN_CHARS) {
-        offerLongScan(text)
-      } else {
-        appendToInput(text)
-        toast.success('Text extracted!', 'Review and edit before sending.')
-      }
-    } catch (e: any) {
-      toast.error('Could not read scan', e.message)
-    } finally {
-      loader.hide(loadId)
-      setBusy(false)
+    const scan = await scanToText()
+    setBusy(false)
+    if (!scan) return
+    if (scan.text.length > LONG_SCAN_CHARS) {
+      offerLongScan(scan.text)
+    } else {
+      appendToInput(scan.text)
+      toast.success('Text extracted!', 'Review and edit before sending.')
     }
   }
 

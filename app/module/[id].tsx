@@ -5,7 +5,6 @@ import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
-import * as FileSystem from 'expo-file-system'
 import {
   StyledPage, StyledScrollView, Stack,
   StyledCard, StyledPressable, StyledButton, TabBar, type TabItem, useToast, useLoader, useActionSheet, useDialogue,
@@ -13,7 +12,8 @@ import {
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { quotaGate, incrementQuota } from '../../src/utils/quota'
-import { scanPages, extractScanText } from '../../src/utils/documentScanner'
+import { writeScanFile } from '../../src/utils/documentScanner'
+import { useDocumentScan } from '../../src/hooks/useDocumentScan'
 import { useColors, useIsDark, TOOLS } from '../../src/constants'
 import { useModuleStore, useAuthStore } from '../../src/stores'
 import { useModuleDetail } from '../../src/hooks'
@@ -112,6 +112,7 @@ export default function ModuleDetailScreen() {
   const loader = useLoader()
   const actionSheet = useActionSheet()
   const dialogue = useDialogue()
+  const { scanToText } = useDocumentScan()
 
   // The screen stays mounted (just unfocused) while chatting/syncing elsewhere in
   // the stack, so its mount-time fetch alone never picks up a session created — or
@@ -233,52 +234,17 @@ export default function ModuleDetailScreen() {
   // Native multi-page scanner → OCR each page → one personal document, via
   // the same pending/confirm/sync flow as an uploaded file.
   const handleScanDocument = async () => {
-    let scan: Awaited<ReturnType<typeof scanPages>>
-    try {
-      scan = await scanPages()
-    } catch (e: any) {
-      toast.error('Scanner unavailable', e?.message || 'Use "Scan a page" instead.')
-      return
-    }
+    const scan = await scanToText()
     if (!scan) return
-    const { pages, dropped } = scan
-    if (dropped > 0) {
-      toast.info(`Only ${pages.length} page${pages.length > 1 ? 's' : ''} read`, `${dropped} over today's limit ${dropped > 1 ? 'were' : 'was'} skipped.`)
-    }
-    const loadId = loader.show({
-      label: pages.length > 1 ? `Reading ${pages.length} pages…` : 'Reading page…',
-      variant: 'dots',
-    })
     try {
-      const text = await extractScanText(pages)   // charges quota per page
-      if (!text.trim()) {
-        toast.warning('No text found', 'Try again with the pages in clear view.')
-        return
-      }
-      // Uploaded as a .txt file rather than pasted: /documents/paste caps content
-      // at 50k characters, which a dense 20-page scan can exceed.
-      const name = `Scanned_${pages.length}_page${pages.length > 1 ? 's' : ''}_${new Date().toISOString().slice(0, 10)}.txt`
-      const uri  = `${FileSystem.cacheDirectory}scan_${Date.now()}.txt`
-      await FileSystem.writeAsStringAsync(uri, text)
-      const pending: PendingDoc = { id: `pending-${Date.now()}`, name, visibility: 'personal', source: 'file', uri, type: 'text/plain' }
+      const file = await writeScanFile(scan.text, scan.pageCount)
+      const pending: PendingDoc = { id: `pending-${Date.now()}`, ...file, visibility: 'personal', source: 'file' }
       setPendingDocs((prev) => [pending, ...prev])
       setTab('documents')
       syncPendingDoc(pending)
     } catch (e: any) {
-      toast.error('Could not read scan', e.message)
-    } finally {
-      loader.hide(loadId)
+      toast.error('Could not save scan', e.message)
     }
-  }
-
-  const handleScan = () => {
-    actionSheet.show({
-      title: 'Scan a page',
-      items: [
-        { icon: '📷', label: 'Take a photo',        onPress: () => scanFrom('camera')  },
-        { icon: '🖼️', label: 'Choose from gallery', onPress: () => scanFrom('gallery') },
-      ],
-    })
   }
 
   return (
@@ -701,9 +667,10 @@ export default function ModuleDetailScreen() {
             actionSheet.show({
               title: 'Add to this module',
               items: [
-                { icon: '🧾', label: 'Scan document', onPress: handleScanDocument },
-                { icon: '📷', label: 'Scan a page',   onPress: handleScan },
-                { icon: '📄', label: 'Upload a file', onPress: () => handleUpload('personal') },
+                { icon: '🧾', label: 'Scan document (multi-page)', onPress: handleScanDocument },
+                { icon: '📷', label: 'Take a photo',               onPress: () => scanFrom('camera') },
+                { icon: '🖼️', label: 'Choose from gallery',        onPress: () => scanFrom('gallery') },
+                { icon: '📄', label: 'Upload a file',              onPress: () => handleUpload('personal') },
               ],
             })
           }

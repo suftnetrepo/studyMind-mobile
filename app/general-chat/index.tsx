@@ -14,6 +14,7 @@ import { RichText } from '../../src/components/RichText'
 import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { useColors, useIsDark } from '../../src/constants'
 import { useGeneralChat, type ChatMessage, type ComplexityLevel } from '../../src/hooks'
+import { useDocumentScan } from '../../src/hooks/useDocumentScan'
 import { chatService } from '../../src/services/api'
 import { copyToClipboard, shareText, formatConversationForExport } from '../../src/utils/share'
 import { TypingDots } from '../../src/components/TypingDots'
@@ -47,6 +48,7 @@ export default function GeneralChatScreen() {
   const actionSheet = useActionSheet()
   const toast        = useToast()
   const loader       = useLoader()
+  const { scanToText } = useDocumentScan()
 
   const [input, setInput] = React.useState('')
   const [fontSizeOpen, setFontSizeOpen] = React.useState(false)
@@ -119,10 +121,25 @@ export default function GeneralChatScreen() {
     }
   }
 
+  const handleScanDocument = async () => {
+    setBusy(true)
+    const scan = await scanToText()
+    setBusy(false)
+    if (!scan) return
+    if (scan.text.length > MAX_MESSAGE_CHARS) {
+      appendToInput(scan.text.slice(0, MAX_MESSAGE_CHARS))
+      toast.info('Trimmed to fit', 'Only the first part fits in one message.')
+    } else {
+      appendToInput(scan.text)
+      toast.success('Text extracted!', 'Review and edit before sending.')
+    }
+  }
+
   const handleScanPress = () => {
     actionSheet.show({
       title: 'Add an image',
       items: [
+        { icon: '🧾', label: 'Scan document (multi-page)', onPress: handleScanDocument },
         { icon: '📷', label: 'Take a photo',        onPress: () => handleScanImage('camera')  },
         { icon: '🖼️', label: 'Choose from gallery', onPress: () => handleScanImage('gallery') },
       ],

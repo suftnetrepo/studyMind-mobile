@@ -19,6 +19,7 @@ import { FontSizePopup } from '../../src/components/FontSizePopup'
 import { useColors, useIsDark } from '../../src/constants'
 import { shareText } from '../../src/utils/share'
 import { quotaGate, incrementQuota } from '../../src/utils/quota'
+import { useDocumentScan } from '../../src/hooks/useDocumentScan'
 import { writingService, chatService } from '../../src/services/api'
 
 type WritingMode = 'general' | 'outline' | 'essay' | 'modify'
@@ -58,6 +59,7 @@ export default function WritingAssistantScreen() {
   const isDark = useIsDark()
   const toast  = useToast()
   const loader = useLoader()
+  const { scanToText } = useDocumentScan()
   const actionSheet = useActionSheet()
   const [recording, setRecording] = useState<Audio.Recording | null>(null)
   const [busy, setBusy] = useState(false)
@@ -145,10 +147,22 @@ export default function WritingAssistantScreen() {
     }
   }
 
+  const scanDocument = async () => {
+    setBusy(true)
+    const scan = await scanToText()
+    setBusy(false)
+    if (!scan) return
+    if (input.trim().length + scan.text.length + 1 > MAX_INPUT) {
+      toast.info('Trimmed to fit', `Only the first ${MAX_INPUT.toLocaleString()} characters fit.`)
+    }
+    appendInput(scan.text)
+  }
+
   const handleAttach = () =>
     actionSheet.show({
       title: 'Add text from an image',
       items: [
+        { icon: '🧾', label: 'Scan document (multi-page)', onPress: scanDocument },
         { icon: '📷', label: 'Take a photo',        onPress: () => scanFrom('camera')  },
         { icon: '🖼️', label: 'Choose from gallery', onPress: () => scanFrom('gallery') },
       ],
