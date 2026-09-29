@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { Platform, ScrollView, RefreshControl } from 'react-native'
+import { Platform, ScrollView, RefreshControl, useWindowDimensions } from 'react-native'
 import { router } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
@@ -17,6 +17,8 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
 
 const HOME_MODULE_LIMIT = 5
+const SCREEN_PADDING    = 20   // matches the page ScrollView's padding
+const MODULE_CARD_GAP   = 14
 
 const QUICK_ACTIONS = [
   { key: 'chat',       icon: 'message-circle', label: 'Tutor',    route: '/chat',       fg: 'chatColor', bg: 'chatBg'  },
@@ -27,6 +29,9 @@ const QUICK_ACTIONS = [
 
 export default function HomeScreen() {
   const C      = useColors()
+  const { width: screenWidth } = useWindowDimensions()
+  // Each module card fills the content width; swipe to the next one.
+  const moduleCardWidth = screenWidth - SCREEN_PADDING * 2
   const isDark = useIsDark()
   const user   = useAuthStore((s) => s.user)
   const { logout } = useAuth()
@@ -300,16 +305,16 @@ export default function HomeScreen() {
         <ScrollView
           horizontal showsHorizontalScrollIndicator={false}
           decelerationRate="fast" snapToAlignment="start"
-          snapToOffsets={modules.map((_, i) => i * 316)}
-          style={{ marginHorizontal: -20, marginBottom: 28 }}
-          contentContainerStyle={{ paddingHorizontal: 20, gap: 14 }}
+          snapToOffsets={modules.map((_, i) => i * (moduleCardWidth + MODULE_CARD_GAP))}
+          style={{ marginHorizontal: -SCREEN_PADDING, marginBottom: 28 }}
+          contentContainerStyle={{ paddingHorizontal: SCREEN_PADDING, gap: MODULE_CARD_GAP }}
         >
           {modules.map((mod, idx) => {
             const mc = getModuleColors(C, idx)
             return (
               <StyledCard
                 key={mod.id}
-                width={300}
+                width={moduleCardWidth}
                 backgroundColor={C.bgCard} borderRadius={24} padding={16} gap={16}
                 style={{
                   borderWidth: 1, borderColor: C.border,
