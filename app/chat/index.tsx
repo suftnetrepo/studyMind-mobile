@@ -148,23 +148,25 @@ export default function ChatScreen() {
 
   // ── Multi-page document scan: native scanner → OCR each page → text ─────────
   const handleScanDocument = async () => {
-    let pages: string[] | null
+    let scan: Awaited<ReturnType<typeof scanPages>>
     try {
-      pages = await scanPages()
+      scan = await scanPages()
     } catch (e: any) {
       toast.error('Scanner unavailable', e?.message || 'Use "Take a photo" instead.')
       return
     }
-    if (!pages) return
-    if (!(await quotaGate('scan_image'))) return
+    if (!scan) return
+    const { pages, dropped } = scan
+    if (dropped > 0) {
+      toast.info(`Only ${pages.length} page${pages.length > 1 ? 's' : ''} read`, `${dropped} over today's limit ${dropped > 1 ? 'were' : 'was'} skipped.`)
+    }
     const loadId = loader.show({
       label: pages.length > 1 ? `Reading ${pages.length} pages…` : 'Reading page…',
       variant: 'dots',
     })
     setBusy(true)
     try {
-      const text = await extractScanText(pages)
-      await incrementQuota('scan_image')
+      const text = await extractScanText(pages)   // charges quota per page
       if (!text.trim()) {
         toast.warning('No text found', 'Try again with the pages in clear view.')
         return

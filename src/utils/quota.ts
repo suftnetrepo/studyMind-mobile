@@ -51,6 +51,14 @@ export async function incrementQuota(feature: string): Promise<number> {
   return next
 }
 
+// Uses left today, or null when the user isn't limited.
+export async function remainingQuota(feature: string): Promise<number | null> {
+  const isSelfLearner = useAuthStore.getState().user?.role === 'self_learner'
+  const isPro         = usePremiumStore.getState().isPremium
+  const quota = await checkQuota(feature, isPro, isSelfLearner)
+  return quota.limit === null ? null : Math.max(0, quota.limit - quota.used)
+}
+
 export async function getQuotaStatus(isSelfLearner: boolean, isPro: boolean) {
   if (!isSelfLearner || isPro) return null
   const results: Record<string, { used: number; limit: number }> = {}
