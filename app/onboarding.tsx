@@ -202,7 +202,8 @@ export default function OnboardingScreen() {
 
   const finish = async () => {
     await setOnboardingSeen()
-    router.replace('/auth/login')
+    // New users came through onboarding, so send them to sign-up; "Sign in" on that screen leads to login.
+    router.replace('/auth/register')
   }
 
   const goNext = () => {
