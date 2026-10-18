@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.suftnet.revvo",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "NSCameraUsageDescription": "Revvo uses your camera to scan documents and questions.",
         "NSMicrophoneUsageDescription": "Revvo uses your microphone for voice input in the AI tutor.",
@@ -72,7 +72,15 @@
       ],
       "./plugins/withFmtXcode26Fix",
       "./plugins/withAndroidReleaseSigning",
-      "react-native-document-scanner-plugin"
+      "react-native-document-scanner-plugin",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "suftnetcom",
+          "project": "revvo-mobile",
+          "url": "https://sentry.io/"
+        }
+      ]
     ],
     "scheme": "studymind",
     "experiments": {

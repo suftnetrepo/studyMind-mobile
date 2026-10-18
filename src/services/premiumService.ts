@@ -23,6 +23,7 @@ import { Platform } from 'react-native'
 import * as SecureStore from 'expo-secure-store'
 import Purchases, { type CustomerInfo } from 'react-native-purchases'
 import { PREMIUM_STORAGE_KEY, PREMIUM_ENTITLEMENT_ID, PREMIUM_SHARED_TEST_PROJECT } from '../constants/premium'
+import { addMonitoringBreadcrumb, captureHandledError } from './monitoring'
 
 // ─── RevenueCat API keys ──────────────────────────────────────────────────────
 // A RevenueCat key is tied to one store — an "appl_" key only authenticates
@@ -183,8 +184,10 @@ const purchaseByPackageKey = async (
   if (!pkg) throw new Error(`${key} package not found in offerings`)
 
   try {
+    addMonitoringBreadcrumb('purchase.started', { plan: key })
     const { customerInfo } = await Purchases.purchasePackage(pkg)
     const result = await syncFromCustomerInfo(customerInfo)
+    addMonitoringBreadcrumb('purchase.completed', { plan: key, entitlement_active: result.isActive })
     return result.isActive
   } catch (err: any) {
     // RevenueCat rejects purchasePackage() the same way for a user tapping
@@ -194,9 +197,11 @@ const purchaseByPackageKey = async (
     // internal handler regardless of what we do, and using .error a second
     // time on our side would just double up noise in LogBox during dev.
     if (err?.code === 'PurchaseCancelledError') {
+      addMonitoringBreadcrumb('purchase.cancelled', { plan: key })
       if (__DEV__) console.info(`[Premium] ${key} purchase cancelled by user`)
       return false
     }
+    captureHandledError(err, 'purchase.failed', { plan: key })
     if (__DEV__) console.log(`[Premium] ${key} purchase failed:`, err?.message)
     throw err
   }

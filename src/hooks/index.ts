@@ -13,6 +13,7 @@ import {
 } from 'fluent-styles'
 import { useAuthStore, useModuleStore, usePremiumStore } from '../stores'
 import { identifyUser } from '../services/premiumService'
+import { addMonitoringBreadcrumb, captureHandledError, setMonitoringUser } from '../services/monitoring'
 import { quotaGate, incrementQuota } from '../utils/quota'
 import {
   authService, moduleService, chatService,
@@ -37,10 +38,13 @@ export function useAuth() {
       setTokens(res.access_token, res.refresh_token)
       const me = await authService.me() as any
       setUser(me)
+      setMonitoringUser(me)
+      addMonitoringBreadcrumb('auth.login.succeeded', { role: me.role || 'unknown' })
       toast.success('Welcome back!', `Signed in as ${me.full_name}`)
       router.replace('/(tabs)')
       return true
     } catch (e: any) {
+      addMonitoringBreadcrumb('auth.login.failed')
       toast.error('Sign in failed', e.message || 'Check your credentials and try again.')
       return false
     } finally {
@@ -63,10 +67,13 @@ export function useAuth() {
       setTokens(res.access_token, res.refresh_token)
       const me = await authService.me() as any
       setUser(me)
+      setMonitoringUser(me)
+      addMonitoringBreadcrumb('auth.registration.succeeded', { role: me.role || role })
       toast.success('Account created!', `Welcome, ${me.full_name}`)
       router.replace('/(tabs)')
       return true
     } catch (e: any) {
+      addMonitoringBreadcrumb('auth.registration.failed', { role })
       toast.error('Registration failed', e.message)
       return false
     } finally {
@@ -90,6 +97,7 @@ export function useAuth() {
       try { await authService.logout(refreshToken) } catch {}
     }
     storeLogout()
+    setMonitoringUser(null)
     identifyUser(null).catch(() => {})
     usePremiumStore.getState().setEntitlement(false, null)
     router.replace('/auth/login')
@@ -108,10 +116,12 @@ export function useAuth() {
     try {
       await authService.deleteMe()
     } catch (e: any) {
+      captureHandledError(e, 'auth.delete_account')
       toast.error('Could not delete account', e.message || 'Please try again.')
       return
     }
     storeLogout()
+    setMonitoringUser(null)
     identifyUser(null).catch(() => {})
     usePremiumStore.getState().setEntitlement(false, null)
     toast.success('Account deleted', 'Your data has been removed.')

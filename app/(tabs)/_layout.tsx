@@ -5,6 +5,7 @@ import { useColors } from '../../src/constants'
 import { useAuthStore, usePremiumStore, getSetupDone } from '../../src/stores'
 import { identifyUser } from '../../src/services/premiumService'
 import { onboardingService } from '../../src/services/api'
+import { captureHandledError } from '../../src/services/monitoring'
 
 const Icon = ({ name, color }: { name: keyof typeof Feather.glyphMap; color: string }) => (
   <Feather name={name} size={22} color={color} />
@@ -25,7 +26,7 @@ export default function TabsLayout() {
     if (!user?.id) return
     identifyUser(user.id)
       .then((info) => usePremiumStore.getState().setEntitlement(info.isActive, info.plan))
-      .catch(() => {})
+      .catch((error) => captureHandledError(error, 'premium.identify_user'))
   }, [user?.id])
 
   // First launch after sign-in: send users who haven't set up their role to the right flow.
@@ -38,7 +39,9 @@ export default function TabsLayout() {
       try {
         const status = await onboardingService.status()
         if (!cancelled && !status.complete) router.replace(route as any)
-      } catch {}
+      } catch (error) {
+        captureHandledError(error, 'onboarding.status')
+      }
     })()
     return () => { cancelled = true }
   }, [user?.id, user?.role])

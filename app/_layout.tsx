@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Stack, router } from 'expo-router'
+import { Stack, router, useNavigationContainerRef } from 'expo-router'
 import { GlobalPortalProvider, PortalManager } from 'fluent-styles'
 import * as SplashScreen from 'expo-splash-screen'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -16,12 +16,19 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans'
 import { useAuthStore, useThemeStore, useReaderFontStore, getOnboardingSeen, ensureFreshInstall } from '../src/stores'
 import { authService } from '../src/services/api'
+import {
+  Sentry,
+  captureHandledError,
+  navigationIntegration,
+  setMonitoringUser,
+} from '../src/services/monitoring'
 
 SplashScreen.preventAutoHideAsync()
 
 type InitialRoute = '/(tabs)' | '/onboarding' | '/auth/login'
 
-export default function RootLayout() {
+function RootLayout() {
+  const navigationRef = useNavigationContainerRef()
   const [appReady, setAppReady]     = useState(false)
   const [initialRoute, setInitialRoute] = useState<InitialRoute | null>(null)
   const [navigated, setNavigated]   = useState(false)
@@ -50,10 +57,12 @@ export default function RootLayout() {
           try {
             const me = await authService.me()
             useAuthStore.getState().setUser(me as any)
+            setMonitoringUser(me as any)
             authed = true
           } catch {
             // Token expired or invalid — clear it so the user is sent to login
             useAuthStore.getState().logout()
+            setMonitoringUser(null)
           }
         }
 
@@ -65,6 +74,7 @@ export default function RootLayout() {
         }
       } catch (e) {
         console.error('[Bootstrap]', e)
+        captureHandledError(e, 'app.bootstrap')
         setInitialRoute('/auth/login')
       } finally {
         setAppReady(true)
@@ -72,6 +82,10 @@ export default function RootLayout() {
     }
     bootstrap()
   }, [])
+
+  useEffect(() => {
+    navigationIntegration.registerNavigationContainer(navigationRef)
+  }, [navigationRef])
 
   const isReady = appReady && (fontsLoaded || !!fontError) && initialRoute !== null
 
@@ -131,3 +145,5 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   )
 }
+
+export default Sentry.wrap(RootLayout)
