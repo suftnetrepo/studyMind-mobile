@@ -131,6 +131,29 @@ export default function HomeScreen() {
         contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} colors={[C.primary]} />}
       >
+        {/* ── Pro banner (free self-learners only) ──────────────────── */}
+        {isSelfLearner && !isPremium && (
+          <StyledPressable onPress={() => router.push({ pathname: '/premium', params: { source: 'home' } } as any)} style={{ marginBottom: 20 }}>
+            <Stack
+              horizontal alignItems="center" gap={12}
+              backgroundColor={C.primaryBg} borderRadius={18} padding={14}
+              style={{ borderWidth: 1, borderColor: C.primary }}
+            >
+              <Stack
+                width={38} height={38} borderRadius={12}
+                backgroundColor={C.primary} alignItems="center" justifyContent="center"
+              >
+                <Feather name="star" size={18} color={C.white} />
+              </Stack>
+              <Stack flex={1} gap={1}>
+                <Text variant="label" color={C.textPrimary} fontWeight="800">Go unlimited with Revvo Pro</Text>
+                <Text variant="caption" color={C.textSecondary}>Your free plan has a limited number of AI uses</Text>
+              </Stack>
+              <Feather name="chevron-right" size={18} color={C.primary} />
+            </Stack>
+          </StyledPressable>
+        )}
+
         {/* ── Streak card ───────────────────────────────────────────── */}
         <Stack
           backgroundColor={C.bgCard} borderRadius={24} padding={20}

@@ -70,7 +70,13 @@ export function useAuth() {
       setMonitoringUser(me)
       addMonitoringBreadcrumb('auth.registration.succeeded', { role: me.role || role })
       toast.success('Account created!', `Welcome, ${me.full_name}`)
-      router.replace('/(tabs)')
+      // Self-learners see the Pro offer once, straight after sign-up; "Continue free" takes them on to setup.
+      if (me.role === 'self_learner') {
+        addMonitoringBreadcrumb('paywall.shown', { source: 'signup' })
+        router.replace({ pathname: '/premium', params: { source: 'signup' } })
+      } else {
+        router.replace('/(tabs)')
+      }
       return true
     } catch (e: any) {
       addMonitoringBreadcrumb('auth.registration.failed', { role })

@@ -13,7 +13,7 @@ const FAQS = [
   { q: 'How do I join my lecturer\'s module?', a: 'Open the Modules tab and tap "+ Join", then enter the enrolment code your lecturer shared. Institution codes and module codes both work.' },
   { q: 'What can the AI Tutor answer?', a: 'It answers from the documents in your module and cites the source. For anything outside your course, use the AI Assistant from the Home screen.' },
   { q: 'How do I add my own study material?', a: 'In a module, open the Documents tab to upload a PDF or text file, paste text, scan a page with the camera, or write a note and sync it to the AI.' },
-  { q: 'What are the free daily limits?', a: 'Self-learner accounts get a daily allowance for each AI feature, which resets every day. Revvo Pro removes the limits. Students and lecturers are never limited.' },
+  { q: 'What are the free limits?', a: 'Self-learner accounts get a set number of free uses of each AI feature. Once they are used up, Revvo Pro unlocks unlimited use. Students and lecturers are never limited.' },
   { q: 'How do I restore my Pro purchase?', a: 'Open Settings, tap Go Pro, then choose "Restore purchases" using the same Apple ID you bought with.' },
   { q: 'Can I archive a finished course?', a: 'Yes. On the Modules tab tap the menu on a course and choose Archive. It leaves your Home screen but stays under Archived, and you can restore it any time.' },
 ]

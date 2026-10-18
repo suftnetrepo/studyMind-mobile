@@ -21,7 +21,7 @@ export function useDocumentScan() {
     if (!scan) return null
     const { pages, dropped } = scan
     if (dropped > 0) {
-      toast.info(`Only ${pages.length} page${pages.length > 1 ? 's' : ''} read`, `${dropped} over today's limit ${dropped > 1 ? 'were' : 'was'} skipped.`)
+      toast.info(`Only ${pages.length} page${pages.length > 1 ? 's' : ''} read`, `${dropped} over your free limit ${dropped > 1 ? 'were' : 'was'} skipped.`)
     }
     const loadId = loader.show({
       label: pages.length > 1 ? `Reading ${pages.length} pages…` : 'Reading page…',

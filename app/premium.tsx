@@ -25,7 +25,11 @@ const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tab
 
 export default function PremiumScreen() {
   const C = useColors()
-  const { message, used, limit } = useLocalSearchParams<{ feature?: string; used?: string; limit?: string; message?: string }>()
+  const { message, used, limit, source } = useLocalSearchParams<{ feature?: string; used?: string; limit?: string; message?: string; source?: string }>()
+  // Shown in place of the app straight after sign-up, so leaving always goes into the app, never
+  // back to the sign-up form (or to login, when that is still underneath it in the stack).
+  const fromSignup = source === 'signup'
+  const leave = () => (fromSignup ? router.replace('/(tabs)') : goBack())
   const isDark = useIsDark()
   const {
     isPremium, plan, buyMonthly, buyYearly, restore, resetForTesting,
@@ -36,7 +40,7 @@ export default function PremiumScreen() {
 
   // Students, lecturers and admins are institution-funded and never see the paywall.
   useEffect(() => {
-    if (user && user.role !== 'self_learner') goBack()
+    if (user && user.role !== 'self_learner') leave()
   }, [user])
 
   const [selected, setSelected] = useState<PlanKey>('yearly')
@@ -52,7 +56,7 @@ export default function PremiumScreen() {
     try {
       const buy = selected === 'monthly' ? buyMonthly : buyYearly
       const ok = await buy()
-      if (ok) goBack()
+      if (ok) leave()
     } finally {
       setBusy(false)
     }
@@ -62,7 +66,7 @@ export default function PremiumScreen() {
     setBusy(true)
     try {
       const ok = await restore()
-      if (ok) goBack()
+      if (ok) leave()
     } finally {
       setBusy(false)
     }
@@ -80,7 +84,7 @@ export default function PremiumScreen() {
 
   return (
     <StyledPage flex={1} backgroundColor={C.bg} statusBarStyle={isDark ? 'light-content' : 'dark-content'} statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}>
-      <ScreenHeader title="Revvo Pro" onBackPress={goBack} />
+      <ScreenHeader title="Revvo Pro" onBackPress={leave} />
 
       <StyledScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
 
@@ -98,7 +102,9 @@ export default function PremiumScreen() {
           <Text variant="body" color={C.textSecondary} textAlign="center" style={{ maxWidth: 300 }}>
             {isPremium
               ? `You're on Revvo Pro${plan ? ` · ${plan} plan` : ''}. Thanks for your support, every AI tool is unlimited.`
-              : 'Unlimited AI study tools, no daily limits'}
+              : fromSignup
+                ? 'Welcome to Revvo! Go Pro for unlimited AI study tools, or start with the free plan.'
+                : 'Unlimited AI study tools, no limits'}
           </Text>
         </Stack>
 
@@ -112,7 +118,7 @@ export default function PremiumScreen() {
               <Text variant="label" color={C.textPrimary} fontWeight="700">{message}</Text>
               {!!Number(limit) && (
                 <Text variant="caption" color={C.textSecondary}>
-                  You've used {used}/{limit} today. Free limits reset every day at midnight UTC.
+                  You've used all {limit} free uses. Go Pro to keep going without limits.
                 </Text>
               )}
             </Stack>
@@ -197,6 +203,16 @@ export default function PremiumScreen() {
               onPress={handleContinue} label="Continue"
               style={{ marginBottom: 14 }}
             />
+
+            {fromSignup && (
+              <StyledPressable
+                onPress={leave} disabled={busy}
+                style={{ alignSelf: 'center', paddingVertical: 6, marginBottom: 14 }}
+                accessibilityRole="button" accessibilityLabel="Continue with the free plan"
+              >
+                <Text variant="bodySmall" color={C.textSecondary} fontWeight="600">Continue with free plan</Text>
+              </StyledPressable>
+            )}
 
             <Stack gap={2} style={{ marginBottom: 14 }}>
               <Text variant="caption" color={C.textPrimary} fontWeight="600" textAlign="center">

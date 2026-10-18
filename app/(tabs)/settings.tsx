@@ -149,7 +149,7 @@ export default function SettingsScreen() {
                 style={{ borderWidth: 1, borderColor: C.border }}
               >
                 <Text variant="label" color={C.textPrimary} fontWeight="700" style={{ marginBottom: 12 }}>
-                  Today's free usage
+                  Free usage
                 </Text>
                 <Stack gap={12}>
                   {QUOTA_ROWS.map(({ key, label, icon }) => {

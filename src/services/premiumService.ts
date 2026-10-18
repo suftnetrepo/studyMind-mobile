@@ -4,7 +4,7 @@
  * Manages Revvo Pro entitlement and purchases via RevenueCat.
  *
  * ─── Gating model ──────────────────────────────────────────────────────────
- * Self-learners get daily per-feature limits, tracked on the device (src/utils/quota.ts);
+ * Self-learners get a fixed per-feature free allowance, tracked on the device (src/utils/quota.ts);
  * Pro removes them. Entitlement lives entirely in RevenueCat on the device, the backend
  * never sees it. Students and lecturers are institution-funded and are never limited.
  *

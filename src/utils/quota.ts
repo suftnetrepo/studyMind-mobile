@@ -2,28 +2,30 @@ import { router } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { useAuthStore, usePremiumStore } from '../stores'
 
-// Free-tier daily limits. Enforced on the device only, and only for self-learners:
+// Free-tier allowance per account, for the life of the account: it never resets, so once it is
+// spent the paywall is the only way on. Enforced on the device only, and only for self-learners:
 // students and lecturers are institution-funded and never limited.
 export const FREE_LIMITS: Record<string, number> = {
-  chat:              10,
+  chat:              15,
   quiz:              3,
   flashcard:         3,
   summary:           3,
   smart_writer:      3,
-  general_chat:      5,
+  general_chat:      10,
   scan_image:        5,
-  generate_material: 2,
+  generate_material: 1,
 }
 
-// Keys are per user so accounts sharing a phone don't share a counter.
-const todayKey = (feature: string): string => {
+// Keys are per user so accounts sharing a phone don't share a counter. The "total" prefix is new,
+// so counts left over from the old daily limits are ignored and everyone starts at zero.
+const quotaKey = (feature: string): string => {
   const userId = useAuthStore.getState().user?.id ?? 'anon'
-  return `studymind_quota_${userId}_${feature}_${new Date().toISOString().slice(0, 10)}`
+  return `studymind_quota_total_${userId}_${feature}`
 }
 
 const readCount = async (feature: string): Promise<number> => {
   try {
-    const stored = await SecureStore.getItemAsync(todayKey(feature))
+    const stored = await SecureStore.getItemAsync(quotaKey(feature))
     return stored ? parseInt(stored, 10) || 0 : 0
   } catch {
     return 0
@@ -46,12 +48,12 @@ export async function incrementQuota(feature: string): Promise<number> {
   if (user?.role !== 'self_learner' || usePremiumStore.getState().isPremium) return 0
   const next = (await readCount(feature)) + 1
   try {
-    await SecureStore.setItemAsync(todayKey(feature), String(next))
+    await SecureStore.setItemAsync(quotaKey(feature), String(next))
   } catch {}
   return next
 }
 
-// Uses left today, or null when the user isn't limited.
+// Free uses left, or null when the user isn't limited.
 export async function remainingQuota(feature: string): Promise<number | null> {
   const isSelfLearner = useAuthStore.getState().user?.role === 'self_learner'
   const isPro         = usePremiumStore.getState().isPremium
@@ -80,7 +82,7 @@ export async function quotaGate(feature: string): Promise<boolean> {
       feature,
       used:    String(quota.used),
       limit:   String(quota.limit ?? 0),
-      message: 'Daily free limit reached',
+      message: 'Free limit reached',
     },
   })
   return false

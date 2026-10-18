@@ -1,7 +1,8 @@
 // ─── Revvo Pro configuration ────────────────────────────────────────────
 //
-// Gating model: free accounts have daily limits per AI feature (enforced by
-// the backend, see app/quota in studymind-final); Pro removes them.
+// Gating model: free self-learner accounts get a fixed, never-resetting
+// allowance per AI feature (enforced on the device, see src/utils/quota.ts);
+// Pro removes it.
 
 // ─── Product identifiers ─────────────────────────────────────────────────────
 // Must exist as real products in App Store Connect / Play Console and be
@@ -24,7 +25,7 @@ export const PREMIUM_PRICING = {
 export const PREMIUM_FEATURES = [
   {
     title:       'Unlimited AI messages',
-    description: 'No daily limits on AI Tutor, Quiz, Flashcards or Summary',
+    description: 'No limits on AI Tutor, Quiz, Flashcards or Summary',
   },
   {
     title:       'Unlimited modules',
@@ -40,7 +41,7 @@ export const PREMIUM_FEATURES = [
   },
   {
     title:       'Voice input unlimited',
-    description: 'Ask questions by voice without daily restrictions',
+    description: 'Ask questions by voice without restrictions',
   },
   {
     title:       'Support Revvo',

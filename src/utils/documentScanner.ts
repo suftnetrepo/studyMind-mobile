@@ -19,7 +19,7 @@ export const MAX_SCAN_PAGES = 20
 
 /**
  * Checks the scan_image quota (each page costs one), then opens the scanner
- * capped at the pages left today. Resolves to page image URIs plus how many
+ * capped at the free pages left. Resolves to page image URIs plus how many
  * pages were dropped over the cap, or null if out of quota or cancelled.
  */
 export async function scanPages(): Promise<{ pages: string[]; dropped: number } | null> {
