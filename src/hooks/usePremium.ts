@@ -32,9 +32,10 @@ export function usePremium() {
   }, [])
 
   const buy = useCallback(
-    async (purchaseFn: () => Promise<boolean>) => {
+    async (purchaseFn: () => Promise<boolean | null>) => {
       try {
         const activated = await purchaseFn()
+        if (activated === null) return false // cancelled on the store sheet: nothing to report
         await refresh()
         if (!activated) {
           toastService.error('Purchase pending', 'It may take a moment to activate — pull to refresh or reopen the app.')

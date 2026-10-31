@@ -165,9 +165,11 @@ export const isPremiumActive = async (): Promise<boolean> => (await getEntitleme
 
 // ─── Purchases ────────────────────────────────────────────────────────────────
 
+// Resolves true when Pro is active, false when the purchase went through but isn't active yet
+// (e.g. pending payment), and null when the user cancelled the store sheet.
 const purchaseByPackageKey = async (
   key: 'monthly' | 'annual' | 'lifetime',
-): Promise<boolean> => {
+): Promise<boolean | null> => {
   await initializeRevenueCat()
   if (initFailed) {
     throw new Error('Purchases are unavailable in this build. Try again from the App Store / Play Store version.')
@@ -191,15 +193,16 @@ const purchaseByPackageKey = async (
     return result.isActive
   } catch (err: any) {
     // RevenueCat rejects purchasePackage() the same way for a user tapping
-    // "Cancel" on Apple's sheet as it does for a real failure — distinguish
-    // by error code so cancelling isn't treated as broken. console.info (not
+    // "Cancel" on the store sheet as it does for a real failure — distinguish
+    // by error code so cancelling isn't treated as broken. The code is "1"
+    // (PURCHASE_CANCELLED_ERROR) on both iOS and Android. console.info (not
     // .error) here matters: RevenueCat's own SDK already logs this via its
     // internal handler regardless of what we do, and using .error a second
     // time on our side would just double up noise in LogBox during dev.
-    if (err?.code === 'PurchaseCancelledError') {
+    if (err?.code === Purchases.PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR || err?.userCancelled) {
       addMonitoringBreadcrumb('purchase.cancelled', { plan: key })
       if (__DEV__) console.info(`[Premium] ${key} purchase cancelled by user`)
-      return false
+      return null
     }
     captureHandledError(err, 'purchase.failed', { plan: key })
     if (__DEV__) console.log(`[Premium] ${key} purchase failed:`, err?.message)
