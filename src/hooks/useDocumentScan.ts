@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { useToast, useLoader } from 'fluent-styles'
+import { trackEvent } from '../services/analytics'
 import { scanPages, extractScanText, deleteScanPages } from '../utils/documentScanner'
 
 // Multi-page scan → OCR text, with the loader and toasts every screen shows.
@@ -12,6 +13,7 @@ export function useDocumentScan() {
 
   const scanToText = useCallback(async (): Promise<{ text: string; pageCount: number } | null> => {
     let scan: Awaited<ReturnType<typeof scanPages>>
+    trackEvent({ name: 'scan_started' })
     try {
       scan = await scanPages()
     } catch (e: any) {
@@ -33,6 +35,7 @@ export function useDocumentScan() {
         toast.warning('No text found', 'Try again with the pages in clear view.')
         return null
       }
+      trackEvent({ name: 'scan_completed', params: { pages: pages.length } })
       return { text, pageCount: pages.length }
     } catch (e: any) {
       toast.error('Could not read scan', e.message)

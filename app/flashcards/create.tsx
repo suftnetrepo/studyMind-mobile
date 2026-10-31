@@ -11,6 +11,7 @@ import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { flashcardService } from '../../src/services/api'
 import { quotaGate, incrementQuota } from '../../src/utils/quota'
+import { trackEvent } from '../../src/services/analytics'
 import { setPendingDeck } from '../../src/utils/deckBridge'
 
 const CARD_COUNTS = [10, 15, 20, 30] as const
@@ -39,6 +40,7 @@ export default function CreateDeckScreen() {
     try {
       const res = await flashcardService.generate(activeModuleId, maxCards, topic.trim() || undefined)
       await incrementQuota('flashcard')
+      trackEvent({ name: 'flashcard_created', params: { cards: res.card_count ?? maxCards } })
       setPendingDeck(res.id)
       close()
     } catch (e: any) {

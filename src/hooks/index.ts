@@ -6,7 +6,7 @@
 //   useNotification → rich notification banners (upload complete, etc.)
 //   useLoader     → fullscreen loading overlays during async ops
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { router } from 'expo-router'
 import {
   useToast, useDialogue, useNotification, useLoader,
@@ -15,6 +15,7 @@ import { useAuthStore, useModuleStore, usePremiumStore } from '../stores'
 import { identifyUser } from '../services/premiumService'
 import { addMonitoringBreadcrumb, captureHandledError, setMonitoringUser } from '../services/monitoring'
 import { quotaGate, incrementQuota } from '../utils/quota'
+import { trackEvent } from '../services/analytics'
 import {
   authService, moduleService, chatService,
   quizService, flashcardService, summaryService,
@@ -486,6 +487,8 @@ export function useQuiz(moduleId?: string | null) {
         setCurrentIdx(firstOpen >= 0 ? firstOpen : 0)
         setResults(null)
         setPhase('taking')
+        // Resuming a half-finished quiz is not a new start.
+        if (Object.keys(restored).length === 0) trackEvent({ name: 'quiz_started' })
       }
     } catch (e: any) {
       toast.error('Could not open quiz', e.message)
@@ -537,6 +540,8 @@ export function useQuiz(moduleId?: string | null) {
     try {
       const answersArr = Object.entries(answers).map(([question_id, answer]) => ({ question_id, answer }))
       const res = await quizService.submit(attempt.id, answersArr)
+      trackEvent({ name: 'quiz_completed', params: { questions: total } })
+      trackEvent({ name: 'study_session_completed', params: { type: 'quiz' } })
       setResults(res)
       setPhase('results')
       await loadHistory()
@@ -600,6 +605,8 @@ export function useFlashcards(moduleId?: string | null) {
   const toast        = useToast()
   const loader       = useLoader()
   const notification = useNotification()
+
+  const completedDeckRef = useRef<string | null>(null)
 
   const loadDecks = useCallback(async () => {
     if (!moduleId) return
@@ -677,6 +684,11 @@ export function useFlashcards(moduleId?: string | null) {
         setFlipped(false)
       } else {
         // Deck complete
+        // Once per deck opening: re-rating the last card must not count again.
+        if (completedDeckRef.current !== deck.id) {
+          completedDeckRef.current = deck.id
+          trackEvent({ name: 'study_session_completed', params: { type: 'flashcards' } })
+        }
         notification.show({
           title:    'Deck complete! 🎉',
           body:     `You've reviewed all ${deck.card_count} cards. ${masteredCount} mastered.`,
@@ -698,6 +710,8 @@ export function useFlashcards(moduleId?: string | null) {
     try {
       const res = await flashcardService.getDeck(deckId)
       setDeck(res)
+      completedDeckRef.current = null
+      trackEvent({ name: 'flashcard_study_started' })
       const firstOpen = res.cards.findIndex((c: any) => c.status !== 'mastered')
       setCardIdx(firstOpen >= 0 ? firstOpen : 0)
       setFlipped(false)

@@ -1,5 +1,5 @@
-import React from 'react'
-import { Linking, Platform } from 'react-native'
+import React, { useState } from 'react'
+import { Linking, Platform, Switch } from 'react-native'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { StyledPage, StyledScrollView, Stack, StyledCard, StyledPressable, useToast } from 'fluent-styles'
@@ -7,6 +7,7 @@ import { Text } from '../src/components/Text'
 import { ScreenHeader } from '../src/components/ScreenHeader'
 import { useColors, useIsDark } from '../src/constants'
 import { PRIVACY_POLICY_URL, TERMS_URL } from '../src/constants/app'
+import { isAnalyticsEnabled, setAnalyticsEnabled } from '../src/services/analytics'
 
 type Icon = keyof typeof Feather.glyphMap
 
@@ -15,6 +16,7 @@ const POINTS: { icon: Icon; title: string; body: string }[] = [
   { icon: 'file-text',  title: 'Your study material', body: 'Documents, pasted text and scanned pages you add are stored and indexed so the AI can answer from them. Personal material is visible only to you.' },
   { icon: 'cpu',        title: 'AI processing',       body: 'Your questions and the relevant passages are sent to our AI provider to write an answer. Photos and voice recordings are converted to text for the same purpose.' },
   { icon: 'smartphone', title: 'On your device',      body: 'Written notes, theme choice and free-usage counters are kept on your phone.' },
+  { icon: 'bar-chart-2', title: 'Usage analytics',     body: 'We count which screens and features are used (never your study material, answers or personal details) to improve Revvo. You can turn this off below.' },
   { icon: 'shield',     title: 'Your control',        body: 'You can edit your name in Profile and sign out at any time. To have your account and data deleted, contact support.' },
 ]
 
@@ -22,6 +24,11 @@ export default function PrivacyScreen() {
   const C      = useColors()
   const isDark = useIsDark()
   const toast  = useToast()
+  const [analyticsOn, setAnalyticsOn] = useState(isAnalyticsEnabled())
+  const toggleAnalytics = (value: boolean) => {
+    setAnalyticsOn(value)
+    setAnalyticsEnabled(value)
+  }
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/settings' as any))
 
   const open = (url: string) =>
@@ -51,6 +58,19 @@ export default function PrivacyScreen() {
             </StyledCard>
           ))}
         </Stack>
+
+        <StyledCard backgroundColor={C.bgCard} borderRadius={16} padding={16} marginTop={10}
+          style={{ borderWidth: 1, borderColor: C.border }}
+        >
+          <Stack horizontal alignItems="center" gap={14}>
+            <Stack flex={1} gap={4}>
+              <Text variant="label" color={C.textPrimary} fontWeight="700">Share usage analytics</Text>
+              <Text variant="caption" color={C.textSecondary}>Anonymous screen and feature counts</Text>
+            </Stack>
+            <Switch value={analyticsOn} onValueChange={toggleAnalytics}
+              accessibilityLabel="Share usage analytics" trackColor={{ true: C.primary }} />
+          </Stack>
+        </StyledCard>
 
         <Stack horizontal gap={10} marginTop={20}>
           {[{ label: 'Privacy Policy', url: PRIVACY_POLICY_URL }, { label: 'Terms of Use', url: TERMS_URL }].map((l) => (

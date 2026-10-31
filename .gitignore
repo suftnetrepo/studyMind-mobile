@@ -34,3 +34,6 @@ Thumbs.db
 
 # Android release signing key — never commit
 credentials/
+
+# Firebase config (supplied per environment, see docs/analytics.md)
+firebase/

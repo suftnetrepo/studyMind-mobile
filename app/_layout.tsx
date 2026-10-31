@@ -16,6 +16,8 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans'
 import { useAuthStore, useThemeStore, useReaderFontStore, getOnboardingSeen, ensureFreshInstall } from '../src/stores'
 import { authService } from '../src/services/api'
+import { useScreenTracking } from '../src/hooks/useScreenTracking'
+import { askAnalyticsConsent } from '../src/services/analytics'
 import {
   Sentry,
   captureHandledError,
@@ -29,6 +31,7 @@ type InitialRoute = '/(tabs)' | '/onboarding' | '/auth/login'
 
 function RootLayout() {
   const navigationRef = useNavigationContainerRef()
+  useScreenTracking()
   const [appReady, setAppReady]     = useState(false)
   const [initialRoute, setInitialRoute] = useState<InitialRoute | null>(null)
   const [navigated, setNavigated]   = useState(false)
@@ -103,7 +106,10 @@ function RootLayout() {
   }, [isReady, navigated, initialRoute])
 
   useEffect(() => {
-    if (navigated) SplashScreen.hideAsync()
+    if (navigated) {
+      SplashScreen.hideAsync()
+      askAnalyticsConsent()
+    }
   }, [navigated])
 
   if (!isReady) return null

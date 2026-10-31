@@ -14,6 +14,7 @@ import { PREMIUM_FEATURES, PREMIUM_PRICING } from '../src/constants/premium'
 import { PRIVACY_POLICY_URL, TERMS_URL } from '../src/constants/app'
 import { usePremium } from '../src/hooks/usePremium'
 import { useAuthStore } from '../src/stores'
+import { trackEvent } from '../src/services/analytics'
 import type { PremiumPlan } from '../src/services/premiumService'
 
 // Reuses premiumService's own plan type (minus the "not subscribed" null
@@ -42,6 +43,12 @@ export default function PremiumScreen() {
   useEffect(() => {
     if (user && user.role !== 'self_learner') leave()
   }, [user])
+
+  // Logged once per visit; skipped for institution accounts, who are bounced out above.
+  useEffect(() => {
+    if (user && user.role !== 'self_learner') return
+    trackEvent({ name: 'subscription_viewed', params: { source: source ?? 'app' } })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [selected, setSelected] = useState<PlanKey>('yearly')
   const [busy, setBusy] = useState(false)

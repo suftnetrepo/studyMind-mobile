@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toastService, loaderService } from 'fluent-styles'
 import { usePremiumStore } from '../stores'
+import { trackEvent } from '../services/analytics'
 import {
   purchaseMonthly, purchaseYearly, purchaseLifetime,
   restorePurchases, getEntitlement, getPremiumPrices,
@@ -31,8 +32,14 @@ export function usePremium() {
     getPremiumPrices().then(setPrices).catch(() => {})
   }, [])
 
+  const buying = useRef(false)
+
   const buy = useCallback(
-    async (purchaseFn: () => Promise<boolean | null>) => {
+    async (purchaseFn: () => Promise<boolean | null>, plan: string) => {
+      // Ignore re-entrant taps so a purchase is only ever counted once.
+      if (buying.current) return false
+      buying.current = true
+      trackEvent({ name: 'subscription_purchase_started', params: { plan } })
       try {
         const activated = await purchaseFn()
         if (activated === null) return false // cancelled on the store sheet: nothing to report
@@ -41,19 +48,22 @@ export function usePremium() {
           toastService.error('Purchase pending', 'It may take a moment to activate — pull to refresh or reopen the app.')
           return false
         }
+        trackEvent({ name: 'subscription_purchased', params: { plan } })
         toastService.success('Welcome to Revvo Pro')
         return true
       } catch (err: any) {
         toastService.error('Purchase failed', err?.message)
         return false
+      } finally {
+        buying.current = false
       }
     },
     [refresh],
   )
 
-  const buyMonthly  = useCallback(() => buy(purchaseMonthly),  [buy])
-  const buyYearly   = useCallback(() => buy(purchaseYearly),   [buy])
-  const buyLifetime = useCallback(() => buy(purchaseLifetime), [buy])
+  const buyMonthly  = useCallback(() => buy(purchaseMonthly, 'monthly'),  [buy])
+  const buyYearly   = useCallback(() => buy(purchaseYearly, 'yearly'),   [buy])
+  const buyLifetime = useCallback(() => buy(purchaseLifetime, 'lifetime'), [buy])
 
   const restore = useCallback(async () => {
     try {
