@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { Platform, ScrollView, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
+import { Platform, ScrollView, Linking, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import Svg, { Defs, LinearGradient, Stop, Rect, Circle } from 'react-native-svg'
@@ -9,8 +9,8 @@ import { useColors, useIsDark } from '../src/constants'
 import { setOnboardingSeen } from '../src/stores'
 import { GradientButton } from '../src/components/AuthUI'
 
-type Accent = 'chat' | 'quiz' | 'flash'
-type HeroKind = 'chat' | 'quiz' | 'notes'
+type Accent = 'chat' | 'quiz' | 'flash' | 'web'
+type HeroKind = 'chat' | 'quiz' | 'notes' | 'web'
 const SLIDES: { icon: keyof typeof Feather.glyphMap; title: string; desc: string; accent: Accent; hero: HeroKind }[] = [
   {
     icon:  'message-circle',
@@ -22,7 +22,7 @@ const SLIDES: { icon: keyof typeof Feather.glyphMap; title: string; desc: string
     icon:  'help-circle',
     accent: 'quiz', hero: 'quiz',
     title: 'Test yourself before the exam',
-    desc:  'Turn anything you study into a quiz or a flashcard deck in seconds, generated straight from what you’ve added.',
+    desc:  "Turn anything you study into a quiz or a flashcard deck in seconds, generated straight from what you've added.",
   },
   {
     icon:  'edit-3',
@@ -30,12 +30,18 @@ const SLIDES: { icon: keyof typeof Feather.glyphMap; title: string; desc: string
     title: 'Notes that work with you',
     desc:  'Write notes your way, then make them searchable by AI so every study session builds on the last.',
   },
+  {
+    icon:  'monitor',
+    accent: 'web', hero: 'web',
+    title: 'Study on any device',
+    desc:  'Revvo works on your phone and on the web. Everything stays in sync — switch whenever it suits you.',
+  },
 ]
 
 // Glassy app-tile hero: soft glow blobs, an orbit ring with a bright dot, and the slide's icon.
 function ChatHero({ icon, accent }: { icon: keyof typeof Feather.glyphMap; accent: Accent }) {
   const C = useColors()
-  const fg = { chat: C.chatColor, quiz: C.quizColor, flash: C.flashColor }[accent]
+  const fg = { chat: C.chatColor, quiz: C.quizColor, flash: C.flashColor, web: C.primary }[accent]
   const SIZE = 300
   return (
     <Stack width={SIZE} height={SIZE} alignItems="center" justifyContent="center" marginBottom={28}>
@@ -185,7 +191,62 @@ function NotesHero() {
   )
 }
 
+function WebHero() {
+  const C = useColors()
+  const fg = C.primary
+  return (
+    <Stack width={SIZE} height={SIZE} alignItems="center" justifyContent="center" marginBottom={28}>
+      <Backdrop fg={fg} />
+
+      {/* Browser window mockup */}
+      <Stack width={210} height={148} borderRadius={20} overflow="hidden"
+        style={{ ...glass(fg, C), transform: [{ rotate: '-4deg' }, { translateY: -12 }] }}
+      >
+        {/* Title bar */}
+        <Stack height={30} backgroundColor={C.bgMuted} horizontal alignItems="center" paddingHorizontal={10} gap={5}>
+          {[C.error, C.quizColor, C.success].map((col, i) => (
+            <Stack key={i} width={8} height={8} borderRadius={4} backgroundColor={col} />
+          ))}
+          <Stack flex={1} height={14} borderRadius={7} backgroundColor={C.border} marginLeft={6} />
+        </Stack>
+        {/* Content lines */}
+        <Stack flex={1} padding={12} gap={7}>
+          <Stack width={110} height={8} borderRadius={4} backgroundColor={fg} style={{ opacity: 0.7 }} />
+          {[90, 130, 100, 115].map((w, i) => (
+            <Stack key={i} width={w} height={6} borderRadius={3} backgroundColor={C.bgMuted} />
+          ))}
+        </Stack>
+      </Stack>
+
+      {/* Phone mockup */}
+      <Stack position="absolute" right={22} bottom={32} width={72} height={118} borderRadius={18}
+        style={{ ...glass(fg, C), transform: [{ rotate: '8deg' }], overflow: 'hidden' }}
+      >
+        <Stack height={8} backgroundColor={C.bgMuted} alignItems="center" justifyContent="center">
+          <Stack width={20} height={4} borderRadius={2} backgroundColor={C.border} />
+        </Stack>
+        <Stack flex={1} padding={6} gap={5}>
+          <Stack width={36} height={6} borderRadius={3} backgroundColor={fg} style={{ opacity: 0.7 }} />
+          {[42, 48, 38].map((w, i) => (
+            <Stack key={i} width={w} height={5} borderRadius={2.5} backgroundColor={C.bgMuted} />
+          ))}
+        </Stack>
+      </Stack>
+
+      {/* Sync badge */}
+      <Stack position="absolute" left={10} bottom={52} horizontal alignItems="center" gap={6}
+        borderRadius={14} paddingHorizontal={12} paddingVertical={8}
+        style={{ ...glass(fg, C) }}
+      >
+        <Feather name="refresh-cw" size={14} color={fg} />
+        <Text variant="caption" color={C.textPrimary} fontWeight="700">In sync</Text>
+      </Stack>
+    </Stack>
+  )
+}
+
 function Hero({ kind, icon, accent }: { kind: HeroKind; icon: keyof typeof Feather.glyphMap; accent: Accent }) {
+  if (kind === 'web')   return <WebHero />
   if (kind === 'quiz')  return <QuizHero />
   if (kind === 'notes') return <NotesHero />
   return <ChatHero icon={icon} accent={accent} />
@@ -254,6 +315,22 @@ export default function OnboardingScreen() {
             <Text variant="body" color={C.textSecondary} textAlign="center" style={{ lineHeight: 24, maxWidth: 330 }}>
               {slide.desc}
             </Text>
+            {slide.hero === 'web' && (
+              <StyledPressable onPress={() => Linking.openURL('https://studymind-web.onrender.com')}
+                style={{ marginTop: 18 }}
+              >
+                <Stack horizontal alignItems="center" gap={6} borderRadius={12}
+                  paddingHorizontal={16} paddingVertical={10}
+                  backgroundColor={C.primaryBg}
+                >
+                  <Feather name="globe" size={14} color={C.primary} />
+                  <Text variant="caption" color={C.primary} fontWeight="700">
+                    studymind-web.onrender.com
+                  </Text>
+                  <Feather name="external-link" size={12} color={C.primary} />
+                </Stack>
+              </StyledPressable>
+            )}
           </Stack>
         ))}
       </ScrollView>
