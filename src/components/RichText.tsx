@@ -1,15 +1,17 @@
 import React from 'react'
+import { View, Text as RNText } from 'react-native'
 import Markdown from 'react-native-markdown-display'
 import { useColors } from '../constants'
 import { useReaderFontStore } from '../stores'
+import { MathView } from './MathView'
 
 interface RichTextProps {
   content: string
   fontSize?: number
 }
 
-// Real LaTeX rendering needs a native module (react-native-math-view) that
-// can't run under Expo Go, so math is converted to readable Unicode instead:
+// Maths is typeset with KaTeX (see MathView). The Unicode conversion below is the fallback shown
+// while KaTeX loads, or when it cannot render (bad LaTeX, offline):
 // \frac{a}{b} -> (a)/(b), x^{2} -> x², \alpha -> α, H_2O -> H₂O, and so on.
 const SYMBOLS: Record<string, string> = {
   alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', varepsilon: 'ε', zeta: 'ζ', eta: 'η',
@@ -72,6 +74,106 @@ export function preprocessMath(content: string): string {
     .replace(/\$(?!\s)([^$\n]*[^$\s\n])\$(?!\d)/g, (_m, e) => latexToUnicode(e))
 }
 
+// ─── Splitting content into text and maths ───────────────────────────────────────
+// Built per call: a shared /g regex keeps its lastIndex between .test() and .matchAll().
+const blockRe  = () => /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]/g
+const inlineRe = () => /\\\(([\s\S]+?)\\\)|\$(?!\s)([^$\n]*[^$\s\n])\$(?!\d)/g
+
+type Segment = { type: 'text'; text: string } | { type: 'block'; expr: string }
+
+export function splitBlocks(content: string): Segment[] {
+  const out: Segment[] = []
+  let last = 0
+  for (const m of content.matchAll(blockRe())) {
+    const i = m.index ?? 0
+    if (i > last) out.push({ type: 'text', text: content.slice(last, i) })
+    out.push({ type: 'block', expr: (m[1] ?? m[2]).trim() })
+    last = i + m[0].length
+  }
+  if (last < content.length) out.push({ type: 'text', text: content.slice(last) })
+  return out
+}
+
+type Part = { math: false; text: string } | { math: true; expr: string }
+
+export function splitInline(line: string): Part[] {
+  const out: Part[] = []
+  let last = 0
+  for (const m of line.matchAll(inlineRe())) {
+    const i = m.index ?? 0
+    if (i > last) out.push({ math: false, text: line.slice(last, i) })
+    out.push({ math: true, expr: (m[1] ?? m[2]).trim() })
+    last = i + m[0].length
+  }
+  if (last < line.length) out.push({ math: false, text: line.slice(last) })
+  return out
+}
+
+const hasInlineMath = (line: string) => inlineRe().test(line)
+
+// Light markdown (bold / italic / code) for lines that mix text with inline maths.
+type Word = { text: string; bold: boolean; italic: boolean; code: boolean; gap: boolean }
+
+function words(text: string, st: { bold: boolean; italic: boolean; code: boolean }, gapBefore: boolean): { list: Word[]; gap: boolean } {
+  const list: Word[] = []
+  let gap = gapBefore
+  for (const tok of text.split(/(\*\*|\*|`)/)) {
+    if (tok === '**') { st.bold = !st.bold; continue }
+    if (tok === '*')  { st.italic = !st.italic; continue }
+    if (tok === '`')  { st.code = !st.code; continue }
+    for (const piece of tok.split(/(\s+)/)) {
+      if (!piece) continue
+      if (/^\s+$/.test(piece)) { gap = true; continue }
+      list.push({ text: piece, bold: st.bold, italic: st.italic, code: st.code, gap })
+      gap = false
+    }
+  }
+  return { list, gap }
+}
+
+function InlineLine({ line, fontSize, color, codeBg }: { line: string; fontSize: number; color: string; codeBg: string }) {
+  let body = line
+  let prefix: string | null = null
+  let heading = false
+  const li = body.match(/^\s*(?:[-*+]|\d+[.)])\s+/)
+  if (li) { prefix = /\d/.test(li[0]) ? li[0].trim() : '•'; body = body.slice(li[0].length) }
+  const h = body.match(/^#{1,6}\s+/)
+  if (h) { heading = true; body = body.slice(h[0].length) }
+
+  const size = heading ? fontSize + 1 : fontSize
+  const st = { bold: heading, italic: false, code: false }
+  let gap = false
+  const nodes: React.ReactNode[] = []
+  splitInline(body).forEach((p, idx) => {
+    if (p.math) {
+      nodes.push(
+        <View key={idx} style={{ marginLeft: gap ? 4 : 0, alignSelf: 'flex-start' }}>
+          <MathView expr={p.expr} display={false} color={color} fontSize={size} fallback={latexToUnicode(p.expr)} />
+        </View>,
+      )
+      gap = false
+    } else {
+      const r = words(p.text, st, gap)
+      gap = r.gap
+      r.list.forEach((w, j) => nodes.push(
+        <RNText key={`${idx}-${j}`} style={{
+          color, fontSize: size, marginLeft: w.gap ? 4 : 0,
+          fontFamily: w.bold ? 'PlusJakartaSans_700Bold' : 'PlusJakartaSans_400Regular',
+          fontStyle: w.italic ? 'italic' : 'normal',
+          ...(w.code ? { fontFamily: 'monospace', backgroundColor: codeBg } : null),
+        }}>{w.text}</RNText>,
+      ))
+    }
+  })
+
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: 6 }}>
+      {prefix && <RNText style={{ color, fontSize: size, marginRight: 8, fontFamily: 'PlusJakartaSans_400Regular' }}>{prefix}</RNText>}
+      {nodes}
+    </View>
+  )
+}
+
 export function RichText({ content, fontSize: baseFontSize = 14 }: RichTextProps) {
   const C = useColors()
   const scale = useReaderFontStore((s) => s.scale)
@@ -97,9 +199,33 @@ export function RichText({ content, fontSize: baseFontSize = 14 }: RichTextProps
     td:               { padding: 8, borderTopWidth: 1, borderColor: C.border },
   }
 
-  return (
-    <Markdown style={markdownStyles}>
-      {preprocessMath(content)}
-    </Markdown>
-  )
+  // Walk the content: display maths becomes its own typeset block, lines with inline maths flow as
+  // text + typeset pieces, and everything else stays regular markdown.
+  const blocks: React.ReactNode[] = []
+  let buffer: string[] = []
+  const flush = (key: string) => {
+    if (buffer.join('').trim()) blocks.push(<Markdown key={key} style={markdownStyles}>{buffer.join('\n')}</Markdown>)
+    buffer = []
+  }
+
+  splitBlocks(content).forEach((seg, si) => {
+    if (seg.type === 'block') {
+      flush(`m${si}`)
+      blocks.push(<MathView key={`b${si}`} expr={seg.expr} display color={C.textPrimary} fontSize={fontSize + 2} fallback={latexToUnicode(seg.expr)} />)
+      return
+    }
+    let inFence = false
+    seg.text.split('\n').forEach((line, li) => {
+      if (/^\s*```/.test(line)) inFence = !inFence
+      if (!inFence && hasInlineMath(line)) {
+        flush(`m${si}-${li}`)
+        blocks.push(<InlineLine key={`i${si}-${li}`} line={line} fontSize={fontSize} color={C.textPrimary} codeBg={C.bgMuted} />)
+      } else {
+        buffer.push(line)
+      }
+    })
+    flush(`m${si}-end`)
+  })
+
+  return <View>{blocks}</View>
 }
