@@ -28,7 +28,7 @@ export default function StudentSetup() {
   const handleJoin = async () => {
     const value = code.trim().toUpperCase()
     if (!value) {
-      toast.warning('Enter a code', 'Ask your lecturer for the institution or module code.')
+      toast.warning('Enter a code', 'Ask your lecturer for the enrolment code.')
       return
     }
     const loadId = loader.show({ label: 'Joining…', variant: 'dots' })
@@ -62,10 +62,10 @@ export default function StudentSetup() {
             <HeroIcon name="book-open" size={100} />
             <Stack alignItems="center" gap={6}>
               <Text variant="header" color={C.textPrimary} fontWeight="800" textAlign="center">
-                Join your university
+                Join your course
               </Text>
               <Text variant="body" color={C.textSecondary} textAlign="center" style={{ lineHeight: 24, maxWidth: 290 }}>
-                Enter the code your lecturer gave you to access your course materials.
+                Enter the enrolment code your lecturer gave you to access your course materials.
               </Text>
             </Stack>
           </Stack>
@@ -74,8 +74,8 @@ export default function StudentSetup() {
             style={{ borderWidth: 1, borderColor: C.border }}
           >
             <StyledForm.Input
-              label="Institution or enrolment code"
-              placeholder="e.g. DEMO2025 or CSC109-AB12"
+              label="Enrolment code"
+              placeholder="e.g. CSC109-AB12"
               value={code}
               onChangeText={(t) => setCode(t.toUpperCase())}
               autoCapitalize="characters"
@@ -103,7 +103,7 @@ export default function StudentSetup() {
             <Stack flex={1} gap={4}>
               <Text variant="label" color={C.primary} fontWeight="700">Where do I get a code?</Text>
               <Text variant="caption" color={C.textSecondary} style={{ lineHeight: 18 }}>
-                Your lecturer or institution will share a code by email, on your student portal, or in class.
+                Your lecturer will share an enrolment code by email, on your student portal, or in class.
               </Text>
             </Stack>
           </Stack>
