@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { Platform, ScrollView, RefreshControl, useWindowDimensions, Linking } from 'react-native'
+import { Platform, ScrollView, RefreshControl, useWindowDimensions } from 'react-native'
 import { router } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
@@ -9,22 +9,9 @@ import {
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { useColors, useIsDark, getModuleColors } from '../../src/constants'
-import { useAuthStore, useModuleStore, usePremiumStore } from '../../src/stores'
+import { useAuthStore, useModuleStore } from '../../src/stores'
 import { useModules, useAuth } from '../../src/hooks'
 import { useStreak } from '../../src/hooks/useActivity'
-import { authService } from '../../src/services/api'
-
-const WEB_BILLING = 'https://studymind-web.onrender.com'
-
-async function openBilling(): Promise<void> {
-  try {
-    const { token } = await authService.magicLink()
-    const url = `${WEB_BILLING}/auth/magic?token=${encodeURIComponent(token)}&redirect=/billing`
-    await Linking.openURL(url)
-  } catch {
-    await Linking.openURL(`${WEB_BILLING}/billing`)
-  }
-}
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
@@ -53,8 +40,6 @@ export default function HomeScreen() {
   const activeModules = React.useMemo(() => allModules.filter((m) => m.status !== 'archived'), [allModules])
   const modules = React.useMemo(() => activeModules.slice(0, HOME_MODULE_LIMIT), [activeModules])
   const { data: streak, refetch: refetchStreak } = useStreak()
-  const { isPremium } = usePremiumStore()
-  const isSelfLearner = user?.role === 'self_learner'
   const [refreshing, setRefreshing] = React.useState(false)
 
   // What to offer when there is nothing to show, by role (a self-learner has nothing to "browse").
@@ -144,28 +129,6 @@ export default function HomeScreen() {
         contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} colors={[C.primary]} />}
       >
-        {/* ── Pro banner (free self-learners only) ──────────────────── */}
-        {isSelfLearner && !isPremium && (
-          <StyledPressable onPress={openBilling} style={{ marginBottom: 20 }}>
-            <Stack
-              horizontal alignItems="center" gap={12}
-              backgroundColor={C.primaryBg} borderRadius={18} padding={14}
-              style={{ borderWidth: 1, borderColor: C.primary }}
-            >
-              <Stack
-                width={38} height={38} borderRadius={12}
-                backgroundColor={C.primary} alignItems="center" justifyContent="center"
-              >
-                <Feather name="star" size={18} color={C.white} />
-              </Stack>
-              <Stack flex={1} gap={1}>
-                <Text variant="label" color={C.textPrimary} fontWeight="800">Upgrade to StudyMind Plus</Text>
-                <Text variant="caption" color={C.textSecondary}>Unlimited AI messages, quizzes and flashcards</Text>
-              </Stack>
-              <Feather name="external-link" size={18} color={C.primary} />
-            </Stack>
-          </StyledPressable>
-        )}
 
         {/* ── Streak card ───────────────────────────────────────────── */}
         <Stack
