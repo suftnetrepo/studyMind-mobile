@@ -36,6 +36,13 @@ export function useAuth() {
       const res = await authService.login(email.trim().toLowerCase(), password)
       setTokens(res.access_token, res.refresh_token)
       const me = await authService.me() as any
+      if (me.role !== 'student') {
+        // The mobile app is for students only; lecturers use the web app.
+        storeLogout()
+        addMonitoringBreadcrumb('auth.login.rejected_role')
+        toast.error('Students only', 'This app is for student accounts. Lecturers can sign in on the web.')
+        return false
+      }
       setUser(me)
       setMonitoringUser(me)
       addMonitoringBreadcrumb('auth.login.succeeded', { role: me.role || 'unknown' })
@@ -53,8 +60,9 @@ export function useAuth() {
 
   const register = async (
     email: string, password: string,
-    fullName: string, role: string,
+    fullName: string,
   ) => {
+    const role = 'student'
     if (!email || !password || !fullName) {
       toast.warning('Missing fields', 'Fill in all fields to continue.')
       return false

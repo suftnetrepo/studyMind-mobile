@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Platform, KeyboardAvoidingView } from 'react-native'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
@@ -10,42 +10,17 @@ import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { AuthBackground, BrandMark, GradientButton, EyeToggle, EMAIL_RE } from '../../src/components/AuthUI'
 import { useColors, useIsDark, getFieldColors } from '../../src/constants'
 import { useAuth } from '../../src/hooks'
-import { authService } from '../../src/services/api'
-
-type Role = 'student' | 'lecturer' | 'self_learner'
-
-const ROLES: { key: Role; icon: keyof typeof Feather.glyphMap; label: string; desc: string }[] = [
-  { key: 'student',      icon: 'award',     label: 'Student',      desc: 'Join a university module'   },
-  { key: 'lecturer',     icon: 'briefcase', label: 'Lecturer',     desc: 'Teach and upload materials' },
-  { key: 'self_learner', icon: 'book',      label: 'Self-learner', desc: 'Study at your own pace'     },
-]
 
 export default function RegisterScreen() {
   const C      = useColors()
   const isDark = useIsDark()
   const { register, loading } = useAuth()
 
-  const [role,     setRole]     = useState<Role>('self_learner')
   const [fullName, setFullName] = useState('')
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [showPw,   setShowPw]   = useState(false)
   const [tried,    setTried]    = useState(false)
-
-  // Which account types can sign up is decided by the server (launch gating). Until it answers, or
-  // if it can't be reached, only Self-learner is offered.
-  const [enabled, setEnabled] = useState<string[]>(['self_learner'])
-  useEffect(() => {
-    authService.config()
-      .then((c) => {
-        if (c.enabled_roles?.length) {
-          setEnabled(c.enabled_roles)
-          setRole((r) => (c.enabled_roles.includes(r) ? r : (c.enabled_roles[0] as Role)))
-        }
-      })
-      .catch(() => {})
-  }, [])
-  const visibleRoles = ROLES.filter((r) => enabled.includes(r.key))
 
   const FC = getFieldColors(C)
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/auth/login'))
@@ -62,7 +37,7 @@ export default function RegisterScreen() {
   const submit = () => {
     setTried(true)
     if (!nameOk || !emailOk || !passwordOk) return
-    register(email, password, fullName.trim(), role)
+    register(email, password, fullName.trim())
   }
 
   return (
@@ -83,43 +58,6 @@ export default function RegisterScreen() {
           <Stack marginBottom={32}>
             <BrandMark />
           </Stack>
-
-          {visibleRoles.length > 1 && (
-          <Stack gap={10} marginBottom={22}>
-            <Text variant="subLabel" color={C.textSecondary} fontWeight="600">I am a…</Text>
-            {visibleRoles.map(({ key, icon, label, desc }) => {
-              const on = role === key
-              return (
-                <StyledPressable key={key} onPress={() => setRole(key)}>
-                  <Stack
-                    horizontal alignItems="center" gap={14} borderRadius={16} padding={12}
-                    backgroundColor={on ? C.primaryBg : C.bgCard}
-                    style={{ borderWidth: 1.5, borderColor: on ? C.primary : C.border }}
-                  >
-                    <Stack width={42} height={42} borderRadius={13}
-                      backgroundColor={on ? C.primary : C.bgMuted}
-                      alignItems="center" justifyContent="center"
-                    >
-                      <Feather name={icon} size={18} color={on ? '#FFFFFF' : C.textSecondary} />
-                    </Stack>
-                    <Stack flex={1} gap={2}>
-                      <Text variant="label" color={on ? C.primary : C.textPrimary} fontWeight={on ? '700' : '600'}>
-                        {label}
-                      </Text>
-                      <Text variant="caption" color={C.textSecondary}>{desc}</Text>
-                    </Stack>
-                    <Stack width={22} height={22} borderRadius={11} alignItems="center" justifyContent="center"
-                      backgroundColor={on ? C.primary : 'transparent'}
-                      style={{ borderWidth: 1.5, borderColor: on ? C.primary : C.border }}
-                    >
-                      {on && <Feather name="check" size={12} color="#FFFFFF" />}
-                    </Stack>
-                  </Stack>
-                </StyledPressable>
-              )
-            })}
-          </Stack>
-          )}
 
           <StyledCard backgroundColor={C.bgCard} borderRadius={22} padding={20} marginBottom={20}
             style={{

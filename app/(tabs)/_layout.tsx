@@ -12,8 +12,6 @@ const Icon = ({ name, color }: { name: keyof typeof Feather.glyphMap; color: str
 
 const SETUP_ROUTES: Record<string, string> = {
   student:      '/setup/student',
-  lecturer:     '/setup/lecturer',
-  self_learner: '/setup/self-learner',
 }
 
 export default function TabsLayout() {

@@ -93,7 +93,7 @@ interface AuthState {
     id:             string
     email:          string
     full_name:      string
-    role:           'admin' | 'lecturer' | 'student' | 'self_learner'
+    role:           'student'
     institution_id: string | null
     created_at?:    string
   } | null

@@ -16,9 +16,6 @@ type Icon = keyof typeof Feather.glyphMap
 
 const ROLE_META: Record<string, { label: string; icon: Icon }> = {
   student:      { label: 'Student',       icon: 'award'     },
-  lecturer:     { label: 'Lecturer',      icon: 'briefcase' },
-  self_learner: { label: 'Self-learner',  icon: 'book'      },
-  admin:        { label: 'Administrator', icon: 'shield'    },
 }
 
 export default function ProfileScreen() {
