@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { Platform, ScrollView, RefreshControl, useWindowDimensions } from 'react-native'
+import { Platform, ScrollView, RefreshControl, useWindowDimensions, Linking } from 'react-native'
 import { router } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
@@ -12,6 +12,19 @@ import { useColors, useIsDark, getModuleColors } from '../../src/constants'
 import { useAuthStore, useModuleStore, usePremiumStore } from '../../src/stores'
 import { useModules, useAuth } from '../../src/hooks'
 import { useStreak } from '../../src/hooks/useActivity'
+import { authService } from '../../src/services/api'
+
+const WEB_BILLING = 'https://studymind-web.onrender.com'
+
+async function openBilling(): Promise<void> {
+  try {
+    const { token } = await authService.magicLink()
+    const url = `${WEB_BILLING}/auth/magic?token=${encodeURIComponent(token)}&redirect=/billing`
+    await Linking.openURL(url)
+  } catch {
+    await Linking.openURL(`${WEB_BILLING}/billing`)
+  }
+}
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const TODAY_IDX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
@@ -133,7 +146,7 @@ export default function HomeScreen() {
       >
         {/* ── Pro banner (free self-learners only) ──────────────────── */}
         {isSelfLearner && !isPremium && (
-          <StyledPressable onPress={() => router.push({ pathname: '/premium', params: { source: 'home' } } as any)} style={{ marginBottom: 20 }}>
+          <StyledPressable onPress={openBilling} style={{ marginBottom: 20 }}>
             <Stack
               horizontal alignItems="center" gap={12}
               backgroundColor={C.primaryBg} borderRadius={18} padding={14}
@@ -146,10 +159,10 @@ export default function HomeScreen() {
                 <Feather name="star" size={18} color={C.white} />
               </Stack>
               <Stack flex={1} gap={1}>
-                <Text variant="label" color={C.textPrimary} fontWeight="800">Go unlimited with Revvo Pro</Text>
-                <Text variant="caption" color={C.textSecondary}>Your free plan has a limited number of AI uses</Text>
+                <Text variant="label" color={C.textPrimary} fontWeight="800">Upgrade to StudyMind Plus</Text>
+                <Text variant="caption" color={C.textSecondary}>Unlimited AI messages, quizzes and flashcards</Text>
               </Stack>
-              <Feather name="chevron-right" size={18} color={C.primary} />
+              <Feather name="external-link" size={18} color={C.primary} />
             </Stack>
           </StyledPressable>
         )}

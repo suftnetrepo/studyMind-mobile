@@ -1,10 +1,24 @@
-import { router } from 'expo-router'
+/**
+ * quota.ts — device-side free-tier enforcement for self-learner accounts.
+ *
+ * Self-learners get a fixed, never-resetting allowance per AI feature. Once
+ * spent the user is directed to the web billing page to upgrade to Plus.
+ * Students and lecturers are institution-funded and are never limited here.
+ *
+ * The backend also enforces quotas server-side (returning 429). The two
+ * layers are independent: the device check prevents unnecessary round trips,
+ * the backend check is the authoritative gate.
+ *
+ * Counts are stored per-user so accounts sharing a phone don't share limits.
+ */
 import * as SecureStore from 'expo-secure-store'
+import { Linking } from 'react-native'
 import { useAuthStore, usePremiumStore } from '../stores'
+import { authService } from '../services/api'
 
-// Free-tier allowance per account, for the life of the account: it never resets, so once it is
-// spent the paywall is the only way on. Enforced on the device only, and only for self-learners:
-// students and lecturers are institution-funded and never limited.
+const WEB_BILLING = 'https://studymind-web.onrender.com'
+
+// Free-tier allowance per account, for the life of the account.
 export const FREE_LIMITS: Record<string, number> = {
   chat:              15,
   quiz:              3,
@@ -16,8 +30,8 @@ export const FREE_LIMITS: Record<string, number> = {
   generate_material: 1,
 }
 
-// Keys are per user so accounts sharing a phone don't share a counter. The "total" prefix is new,
-// so counts left over from the old daily limits are ignored and everyone starts at zero.
+// Keys are prefixed with the user id so accounts sharing a device don't
+// share counters.  The "total" prefix distinguishes from legacy daily keys.
 const quotaKey = (feature: string): string => {
   const userId = useAuthStore.getState().user?.id ?? 'anon'
   return `studymind_quota_total_${userId}_${feature}`
@@ -53,7 +67,7 @@ export async function incrementQuota(feature: string): Promise<number> {
   return next
 }
 
-// Free uses left, or null when the user isn't limited.
+/** Free uses remaining, or null when the user is not subject to limits. */
 export async function remainingQuota(feature: string): Promise<number | null> {
   const isSelfLearner = useAuthStore.getState().user?.role === 'self_learner'
   const isPro         = usePremiumStore.getState().isPremium
@@ -70,20 +84,28 @@ export async function getQuotaStatus(isSelfLearner: boolean, isPro: boolean) {
   return results
 }
 
-// Call before an AI request. Returns false (after opening the paywall) when the free limit is spent.
+/** Opens the web billing page via a magic link so the user is signed in
+ *  seamlessly.  Falls back to the billing page root if the token request fails. */
+async function openBilling(): Promise<void> {
+  try {
+    const { token } = await authService.magicLink()
+    const url = `${WEB_BILLING}/auth/magic?token=${encodeURIComponent(token)}&redirect=/billing`
+    await Linking.openURL(url)
+  } catch {
+    await Linking.openURL(`${WEB_BILLING}/billing`)
+  }
+}
+
+/** Call before an AI request.
+ *  Returns true when the action is allowed.
+ *  Returns false and opens the web billing page when the device-side free
+ *  limit is exhausted. */
 export async function quotaGate(feature: string): Promise<boolean> {
   const isSelfLearner = useAuthStore.getState().user?.role === 'self_learner'
   const isPro         = usePremiumStore.getState().isPremium
   const quota = await checkQuota(feature, isPro, isSelfLearner)
   if (quota.allowed) return true
-  router.push({
-    pathname: '/premium',
-    params: {
-      feature,
-      used:    String(quota.used),
-      limit:   String(quota.limit ?? 0),
-      message: 'Free limit reached',
-    },
-  })
+  // Limit reached — send the user to billing on the web.
+  void openBilling()
   return false
 }

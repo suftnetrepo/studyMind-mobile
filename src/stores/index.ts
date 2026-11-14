@@ -1,4 +1,3 @@
-import type { PremiumPlan } from '../services/premiumService'
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 import * as FileSystem from 'expo-file-system'
@@ -206,12 +205,13 @@ export const useModuleStore = create<ModuleState>((set) => ({
   }),
 }))
 
-// ─── Premium store ────────────────────────────────────────────────────────────
+// ─── Premium store ─────────────────────────────────────────────────────────────
+// Entitlement is owned by the backend (Stripe). plan is 'plus' | null.
 interface PremiumState {
   isPremium: boolean
-  plan:      PremiumPlan
+  plan:      'plus' | null
   hydrated:  boolean
-  setEntitlement: (isPremium: boolean, plan: PremiumPlan) => void
+  setEntitlement: (isPremium: boolean, plan: 'plus' | null) => void
 }
 
 export const usePremiumStore = create<PremiumState>((set) => ({

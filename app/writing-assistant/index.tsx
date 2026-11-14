@@ -20,7 +20,8 @@ import { useColors, useIsDark } from '../../src/constants'
 import { shareText } from '../../src/utils/share'
 import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { useDocumentScan } from '../../src/hooks/useDocumentScan'
-import { writingService, chatService } from '../../src/services/api'
+import { writingService, chatService, QuotaExceededError } from '../../src/services/api'
+import { QuotaModal } from '../../src/components/QuotaModal'
 
 type WritingMode = 'general' | 'outline' | 'essay' | 'modify'
 
@@ -73,6 +74,7 @@ export default function WritingAssistantScreen() {
   const [generating, setGenerating] = useState(false)
   const [sheetOpen,  setSheetOpen]  = useState(false)
   const [fontSizeOpen, setFontSizeOpen] = useState(false)
+  const [quotaExceeded, setQuotaExceeded] = useState(false)
 
   const [format,      setFormat]      = useState('General')
   const [tone,        setTone]        = useState('Auto')
@@ -106,7 +108,11 @@ export default function WritingAssistantScreen() {
       setResult(res.content)
       setSheetOpen(true)
     } catch (e: any) {
-      toast.error('Generation failed', e.message)
+      if (e instanceof QuotaExceededError) {
+        setQuotaExceeded(true)
+      } else {
+        toast.error('Generation failed', e.message)
+      }
     } finally {
       setGenerating(false)
     }
@@ -536,6 +542,7 @@ export default function WritingAssistantScreen() {
         </Stack>
       </Modal>
       <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
+      <QuotaModal visible={quotaExceeded} onClose={() => setQuotaExceeded(false)} />
     </StyledPage>
   )
 }

@@ -2,8 +2,8 @@ import React, { useEffect } from 'react'
 import { Tabs, router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { useColors } from '../../src/constants'
-import { useAuthStore, usePremiumStore, getSetupDone } from '../../src/stores'
-import { identifyUser } from '../../src/services/premiumService'
+import { useAuthStore, getSetupDone } from '../../src/stores'
+import { refreshEntitlement } from '../../src/services/premiumService'
 import { onboardingService } from '../../src/services/api'
 import { captureHandledError } from '../../src/services/monitoring'
 
@@ -21,12 +21,11 @@ export default function TabsLayout() {
   const C = useColors()
   const user = useAuthStore((s) => s.user)
 
-  // Tie RevenueCat to the Revvo account so the backend webhook can grant Pro to this user.
+  // Sync Plus entitlement from the backend on login and whenever the user
+  // comes back to the app (the subscription may have been activated on the web).
   useEffect(() => {
     if (!user?.id) return
-    identifyUser(user.id)
-      .then((info) => usePremiumStore.getState().setEntitlement(info.isActive, info.plan))
-      .catch((error) => captureHandledError(error, 'premium.identify_user'))
+    refreshEntitlement().catch((error) => captureHandledError(error, 'premium.refresh_entitlement'))
   }, [user?.id])
 
   // First launch after sign-in: send users who haven't set up their role to the right flow.

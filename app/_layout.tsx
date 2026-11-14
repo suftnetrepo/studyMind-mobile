@@ -3,9 +3,6 @@ import { Stack, router, useNavigationContainerRef } from 'expo-router'
 import { GlobalPortalProvider, PortalManager } from 'fluent-styles'
 import * as SplashScreen from 'expo-splash-screen'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { LogBox } from 'react-native'
-
-LogBox.ignoreLogs(['Error configuring Purchases', 'Purchase was cancelled'])
 import {
   useFonts,
   PlusJakartaSans_400Regular,

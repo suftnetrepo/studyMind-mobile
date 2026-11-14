@@ -1,5 +1,5 @@
 import React from 'react'
-import { Platform } from 'react-native'
+import { Platform, Linking } from 'react-native'
 import { router } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
@@ -13,6 +13,7 @@ import { APP_VERSION } from '../../src/constants/app'
 import { useAuthStore, usePremiumStore, useThemeStore, type ThemeMode } from '../../src/stores'
 import { useAuth } from '../../src/hooks'
 import { getQuotaStatus } from '../../src/utils/quota'
+import { authService } from '../../src/services/api'
 
 type Icon = keyof typeof Feather.glyphMap
 
@@ -29,6 +30,18 @@ const QUOTA_ROWS: { key: string; label: string; icon: Icon }[] = [
   { key: 'summary',      label: 'Summary',      icon: 'clipboard'      },
   { key: 'general_chat', label: 'AI Assistant', icon: 'cpu'            },
 ]
+
+const WEB_BILLING = 'https://studymind-web.onrender.com'
+
+async function openBilling(): Promise<void> {
+  try {
+    const { token } = await authService.magicLink()
+    const url = `${WEB_BILLING}/auth/magic?token=${encodeURIComponent(token)}&redirect=/billing`
+    await Linking.openURL(url)
+  } catch {
+    await Linking.openURL(`${WEB_BILLING}/billing`)
+  }
+}
 
 export default function SettingsScreen() {
   const C      = useColors()
@@ -118,30 +131,32 @@ export default function SettingsScreen() {
 
       <StyledScrollView contentContainerStyle={{ padding: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
 
-        {/* Revvo Pro: self-learners only (students and lecturers are institution-funded) */}
+        {/* StudyMind Plus: self-learners only (students and lecturers are institution-funded) */}
         {isSelfLearner && (
-            <StyledPressable onPress={() => router.push('/premium' as any)}>
-              <StyledCard backgroundColor={C.bgCard} borderRadius={16} padding={16}
-                style={{ borderWidth: 1, borderColor: isPremium ? C.primary : C.border, marginBottom: 12 }}
-              >
-                <Stack horizontal alignItems="center" gap={12}>
-                  <Stack width={40} height={40} borderRadius={12} backgroundColor={C.primaryBg}
-                    alignItems="center" justifyContent="center"
-                  >
-                    <Feather name="star" size={18} color={C.primary} />
-                  </Stack>
-                  <Stack flex={1}>
-                    <Text variant="label" color={C.textPrimary} fontWeight="700">
-                      {isPremium ? 'Revvo Pro' : 'Go Pro'}
-                    </Text>
-                    <Text variant="caption" color={C.textSecondary}>
-                      {isPremium ? 'Unlimited AI tools, thanks for your support' : 'Unlimited AI messages, quizzes and flashcards'}
-                    </Text>
-                  </Stack>
-                  <Feather name="chevron-right" size={16} color={C.textMuted} />
+          <StyledPressable onPress={openBilling}>
+            <StyledCard backgroundColor={C.bgCard} borderRadius={16} padding={16}
+              style={{ borderWidth: 1, borderColor: isPremium ? C.primary : C.border, marginBottom: 12 }}
+            >
+              <Stack horizontal alignItems="center" gap={12}>
+                <Stack width={40} height={40} borderRadius={12} backgroundColor={C.primaryBg}
+                  alignItems="center" justifyContent="center"
+                >
+                  <Feather name="star" size={18} color={C.primary} />
                 </Stack>
-              </StyledCard>
-            </StyledPressable>
+                <Stack flex={1}>
+                  <Text variant="label" color={C.textPrimary} fontWeight="700">
+                    {isPremium ? 'StudyMind Plus' : 'Upgrade to Plus'}
+                  </Text>
+                  <Text variant="caption" color={C.textSecondary}>
+                    {isPremium
+                      ? 'Unlimited AI tools — manage your subscription'
+                      : 'Unlimited AI messages, quizzes and flashcards'}
+                  </Text>
+                </Stack>
+                <Feather name="external-link" size={16} color={C.textMuted} />
+              </Stack>
+            </StyledCard>
+          </StyledPressable>
         )}
 
         {isSelfLearner && !isPremium && quotaData && (

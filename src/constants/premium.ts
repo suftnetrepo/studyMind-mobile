@@ -1,26 +1,8 @@
-// ─── Revvo Pro configuration ────────────────────────────────────────────
-//
-// Gating model: free self-learner accounts get a fixed, never-resetting
-// allowance per AI feature (enforced on the device, see src/utils/quota.ts);
-// Pro removes it.
-
-// ─── Product identifiers ─────────────────────────────────────────────────────
-// Must exist as real products in App Store Connect / Play Console and be
-// attached to the "premium" entitlement in the RevenueCat dashboard.
-// App Store Connect prices updated to match:
-// Monthly: $12.99 — com.suftnet.revvo.premium.monthly
-// Yearly:  $79.99 — com.suftnet.revvo.premium.yearly
-// Lifetime: REMOVED
-export const PREMIUM_PRODUCTS = {
-  MONTHLY: 'com.suftnet.revvo.premium.monthly',
-  YEARLY:  'com.suftnet.revvo.premium.yearly',
-} as const
-
-// Fallback strings shown only until RevenueCat's live offering prices load.
-export const PREMIUM_PRICING = {
-  MONTHLY: { price: '$12.99', period: 'per month', label: 'Monthly' },
-  YEARLY:  { price: '$79.99', period: 'per year',  label: 'Yearly', saving: 'Save 49%' },
-} as const
+/**
+ * Premium feature copy — used in Settings to describe what Plus includes.
+ * Pricing and product IDs live on the web (Stripe); this file has no
+ * RevenueCat or App Store references.
+ */
 
 export const PREMIUM_FEATURES = [
   {
@@ -28,34 +10,19 @@ export const PREMIUM_FEATURES = [
     description: 'No limits on AI Tutor, Quiz, Flashcards or Summary',
   },
   {
-    title:       'Unlimited modules',
-    description: 'Create as many personal courses as you need',
-  },
-  {
     title:       'Unlimited Smart Writer',
     description: 'Essays, outlines and editing without limits',
   },
   {
-    title:       'Scan & Solve unlimited',
+    title:       'Unlimited Scan & Solve',
     description: 'Scan textbooks and handwritten notes without limits',
   },
   {
-    title:       'Voice input unlimited',
+    title:       'Unlimited voice input',
     description: 'Ask questions by voice without restrictions',
   },
   {
-    title:       'Support Revvo',
-    description: 'Your subscription keeps Revvo running and improving',
+    title:       'Unlimited modules',
+    description: 'Create as many personal courses as you need',
   },
 ] as const
-
-// Revvo ships as the next version of Revvo on the App Store, so it reuses Revvo's app record:
-// bundle id com.suftnet.revvo, Revvo's RevenueCat project, "premium" entitlement and the
-// com.suftnet.revvo.premium.* products (existing Revvo subscribers keep their Pro).
-export const PREMIUM_ENTITLEMENT_ID = 'premium'
-
-// true = RevenueCat keeps its anonymous device identity (see identifyUser in premiumService.ts), so
-// purchases made by existing Revvo customers stay attached to them.
-export const PREMIUM_SHARED_TEST_PROJECT = true
-
-export const PREMIUM_STORAGE_KEY = 'studymind_premium_entitlement'

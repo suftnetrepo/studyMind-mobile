@@ -12,7 +12,7 @@ import {
   useToast, useDialogue, useNotification, useLoader,
 } from 'fluent-styles'
 import { useAuthStore, useModuleStore, usePremiumStore } from '../stores'
-import { identifyUser } from '../services/premiumService'
+import { clearEntitlement } from '../services/premiumService'
 import { addMonitoringBreadcrumb, captureHandledError, setMonitoringUser } from '../services/monitoring'
 import { quotaGate, incrementQuota } from '../utils/quota'
 import { trackEvent } from '../services/analytics'
@@ -106,7 +106,7 @@ export function useAuth() {
     }
     storeLogout()
     setMonitoringUser(null)
-    identifyUser(null).catch(() => {})
+    clearEntitlement()
     usePremiumStore.getState().setEntitlement(false, null)
     router.replace('/auth/login')
   }
@@ -130,7 +130,7 @@ export function useAuth() {
     }
     storeLogout()
     setMonitoringUser(null)
-    identifyUser(null).catch(() => {})
+    clearEntitlement()
     usePremiumStore.getState().setEntitlement(false, null)
     toast.success('Account deleted', 'Your data has been removed.')
     router.replace('/auth/login')
