@@ -17,9 +17,9 @@ import { chatService } from '../services/api'
 export const MAX_SCAN_PAGES = 20
 
 /**
- * Checks the scan_image quota (each page costs one), then opens the scanner
- * capped at the free pages left. Resolves to page image URIs plus how many
- * pages were dropped over the cap, or null if out of quota or cancelled.
+ * Opens the native document scanner.
+
+ * pages were dropped over the cap, or null if cancelled.
  */
 export async function scanPages(): Promise<{ pages: string[]; dropped: number } | null> {
   const { scannedImages, status } = await DocumentScanner.scanDocument({
@@ -60,7 +60,7 @@ export async function writeScanFile(text: string, pageCount: number) {
 }
 
 /**
- * OCR every page, in order, charging one scan_image quota hit per page read.
+ * OCR every page in order. Returns combined text or empty string.
  * Pages with no readable text are skipped; the result is empty if none had any.
  */
 export async function extractScanText(pageUris: string[]): Promise<string> {

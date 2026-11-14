@@ -23,7 +23,6 @@ const SCREEN_NAMES: Record<string, string> = {
   '/summary': 'Summary',
   '/summary/create': 'Create Summary',
   '/notes': 'Notes List',
-  '/premium': 'Subscription',
   '/profile': 'Profile',
   '/help': 'Help',
   '/privacy': 'Privacy',

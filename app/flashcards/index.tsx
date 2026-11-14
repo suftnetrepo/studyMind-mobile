@@ -33,7 +33,6 @@ export default function FlashcardsScreen() {
     masteredCount, totalCards, progressPct,
     generating, updating, decksLoaded, refreshDecks,
     flip, prevCard, nextCard, updateCard, openDeck, closeDeck, deleteDeck,
-    quotaExceeded, clearQuotaExceeded,
   } = useFlashcards(activeModuleId)
   const [fontSizeOpen, setFontSizeOpen] = React.useState(false)
 

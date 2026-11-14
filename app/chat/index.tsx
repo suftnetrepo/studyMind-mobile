@@ -42,7 +42,6 @@ export default function ChatScreen() {
 
   const {
     messages, sending, setScopeMode, complexity, setComplexity, send, loadSession,
-    quotaExceeded, clearQuotaExceeded,
   } = useChat(activeModuleId)
 
   const actionSheet = useActionSheet()

@@ -31,7 +31,6 @@ export default function QuizScreen() {
     progress, answers, results, generating, submitting,
     answer, next, prev, submit, reset,
     history, historyLoaded, openAttempt, deleteAttempt, refreshHistory,
-    quotaExceeded, clearQuotaExceeded,
   } = useQuiz(activeModuleId)
 
   const toast = useToast()

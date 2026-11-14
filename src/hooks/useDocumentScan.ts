@@ -5,7 +5,7 @@ import { scanPages, extractScanText, deleteScanPages } from '../utils/documentSc
 
 // Multi-page scan → OCR text, with the loader and toasts every screen shows.
 // Quota is checked before the scanner opens and charged per page (see
-// documentScanner). Resolves to null when cancelled, out of quota, or failed —
+// documentScanner). Resolves to null when cancelled or failed —
 // the user has already been told why.
 export function useDocumentScan() {
   const toast  = useToast()
