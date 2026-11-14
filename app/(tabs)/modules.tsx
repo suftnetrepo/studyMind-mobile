@@ -40,7 +40,6 @@ function JoinCodeForm({
             placeholderTextColor={colors.textMuted}
             autoCapitalize="characters"
             autoCorrect={false}
-            autoFocus
             returnKeyType="done"
             onSubmitEditing={() => code.trim() && onSubmit(code.trim())}
             style={{ color: colors.textPrimary, fontSize: 16 }}
@@ -184,9 +183,10 @@ export default function ModulesScreen() {
 
   const openAddMenu = () => {
     actionSheet.show({
-      title: 'Add module',
+      title: 'Add a module',
       items: [
-        { icon: '🔑', label: 'Join with code', onPress: openJoinSheet },
+        { icon: '🔑', label: 'Join a course with a code', onPress: openJoinSheet },
+        { icon: '📚', label: 'Create my own module', onPress: openCreateSheet },
       ],
     })
   }
@@ -241,7 +241,7 @@ export default function ModulesScreen() {
               No {filter === 'all' ? '' : filter} modules yet
             </Text>
             <Text variant="body" color={C.textSecondary} textAlign="center">
-              Tap + Join and enter the code your lecturer shared.
+              Tap + to join a course with the code your lecturer shared, or create your own module.
             </Text>
           </Stack>
         )}
@@ -316,7 +316,7 @@ export default function ModulesScreen() {
 
       {/* Add: students join with a code; everyone else creates (or joins) */}
       <StyledPressable
-        onPress={openJoinSheet}
+        onPress={openAddMenu}
         width={58} height={58} borderRadius={29}
         backgroundColor={C.primary} alignItems="center" justifyContent="center"
         style={{

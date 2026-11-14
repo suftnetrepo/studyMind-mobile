@@ -33,7 +33,7 @@ export default function CreateModuleScreen() {
     if (!t) return
     setBusy(true)
     try {
-      await moduleService.create({ title: t, course_code: courseCode.trim() || undefined })
+      await moduleService.create({ title: t, course_code: courseCode.trim() || undefined, access_type: 'personal' })
       await refetch(true)
       toast.success('Module created!', `${t} is ready.`)
       close()
