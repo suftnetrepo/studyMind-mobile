@@ -101,7 +101,6 @@ export default function ModuleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { activeModuleTitle, activeCourseCode, setActiveModule } = useModuleStore()
   const user = useAuthStore((s) => s.user)
-  const isLecturer = user?.role === 'lecturer' || user?.role === 'admin'
   const [tab, setTab] = React.useState<TabKey>('overview')
 
   const {
@@ -412,112 +411,7 @@ export default function ModuleDetailScreen() {
         )}
 
         {/* ── Documents ────────────────────────────────────────────────── */}
-        {tab === 'documents' && isLecturer && (
-          <Stack gap={14}>
-            <StyledButton
-              backgroundColor={C.primary} borderRadius={14} paddingVertical={14}
-              onPress={() => handleUpload('class')}
-              style={{
-                shadowColor: C.primary, shadowOpacity: 0.3,
-                shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5,
-              }}
-            >
-              <Text variant="button" color={C.white}>+ Upload material</Text>
-            </StyledButton>
-
-            {loading && (
-              <Stack gap={10}>
-                {[1, 2, 3].map((i) => (
-                  <Stack key={i} height={72} backgroundColor={C.bgMuted} borderRadius={14}
-                    style={{ opacity: 0.4 }}
-                  />
-                ))}
-              </Stack>
-            )}
-
-            {pendingClassDocs.length > 0 && (
-              <Stack gap={10}>
-                {pendingClassDocs.map((doc) => (
-                  <PendingDocCard
-                    key={doc.id} name={doc.name} tone="primary" C={C}
-                    syncing={syncingId === doc.id}
-                    onSync={() => syncPendingDoc(doc)}
-                    onDiscard={() => discardPendingDoc(doc.id)}
-                  />
-                ))}
-              </Stack>
-            )}
-
-            {classDocs.length > 0 && (
-              <Stack gap={10}>
-                {classDocs.map((doc) => (
-                  <StyledCard key={doc.id} backgroundColor={C.bgCard} borderRadius={14} padding={14}
-                    style={{ borderWidth: 1, borderColor: C.border }}
-                  >
-                    <Stack horizontal alignItems="center" gap={12}>
-                      <Stack
-                        width={42} height={42} borderRadius={12}
-                        backgroundColor={C.primaryBg} alignItems="center" justifyContent="center"
-                      >
-                        <Feather name={FILE_ICON[doc.file_type] || 'file'} size={18} color={C.primary} />
-                      </Stack>
-                      <Stack flex={1} gap={4}>
-                        <Text variant="label" color={C.textPrimary} fontWeight="600"
-                          numberOfLines={1}
-                        >{doc.filename}</Text>
-                        <Stack horizontal alignItems="center" gap={8}>
-                          <Stack
-                            backgroundColor={C.successBg} borderRadius={6}
-                            paddingHorizontal={7} paddingVertical={2}
-                          >
-                            <Text variant="caption" color={C.success} fontWeight="700"
-                              style={{ fontSize: 9 }}
-                            >● indexed</Text>
-                          </Stack>
-                          <Text variant="caption" color={C.textMuted}>
-                            {doc.chunk_count} chunks
-                          </Text>
-                          {doc.version > 1 && (
-                            <Stack
-                              backgroundColor={C.bgMuted} borderRadius={6}
-                              paddingHorizontal={7} paddingVertical={2}
-                            >
-                              <Text variant="caption" color={C.textSecondary} fontWeight="700"
-                                style={{ fontSize: 9 }}
-                              >v{doc.version}</Text>
-                            </Stack>
-                          )}
-                        </Stack>
-                      </Stack>
-                      <StyledPressable
-                        onPress={() => deleteDocument(doc.id, doc.filename)}
-                        width={32} height={32} borderRadius={10}
-                        alignItems="center" justifyContent="center"
-                      >
-                        <Feather name="trash-2" size={16} color={C.textMuted} />
-                      </StyledPressable>
-                    </Stack>
-                  </StyledCard>
-                ))}
-              </Stack>
-            )}
-
-            {!loading && classDocs.length === 0 && pendingClassDocs.length === 0 && (
-              <StyledCard backgroundColor={C.bgCard} borderRadius={18} padding={28}
-                alignItems="center" gap={10}
-                style={{ borderWidth: 1, borderColor: C.border }}
-              >
-                <Feather name="folder" size={36} color={C.textMuted} />
-                <Text variant="subtitle" color={C.textPrimary} fontWeight="700">No materials yet</Text>
-                <Text variant="body" color={C.textSecondary} textAlign="center">
-                  Upload lecture slides, notes, or handouts to get started.
-                </Text>
-              </StyledCard>
-            )}
-          </Stack>
-        )}
-
-        {tab === 'documents' && !isLecturer && (
+        {tab === 'documents' && (
           <Stack gap={14}>
             {loading && (
               <Stack gap={10}>
@@ -658,7 +552,7 @@ export default function ModuleDetailScreen() {
 
 
       {/* Add to this module: scan a page or upload a file */}
-      {tab === 'documents' && !isLecturer && (
+      {tab === 'documents' && (
         <StyledPressable
           onPress={() =>
             actionSheet.show({

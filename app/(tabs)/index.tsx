@@ -42,13 +42,9 @@ export default function HomeScreen() {
   const { data: streak, refetch: refetchStreak } = useStreak()
   const [refreshing, setRefreshing] = React.useState(false)
 
-  // What to offer when there is nothing to show, by role (a self-learner has nothing to "browse").
+  // What to offer when there is nothing to show, .
   const emptyState = allModules.length > 0
     ? { title: 'No active modules', body: 'Everything is archived. Restore a module to see it here.', cta: 'View modules', route: '/(tabs)/modules' }
-    : user?.role === 'self_learner'
-    ? { title: 'Start your first course', body: 'Create a course, add your notes or documents, and study with AI.', cta: 'Create a course', route: '/setup/self-learner' }
-    : user?.role === 'lecturer' || user?.role === 'admin'
-    ? { title: 'Create your first module', body: 'Set up a module and upload materials for your students.', cta: 'Create a module', route: '/setup/lecturer' }
     : { title: 'Join your first module', body: 'Enter the code your lecturer shared to get started.', cta: 'Join a module', route: '/setup/student' }
 
   const streakDays = streak?.streak_days ?? 0

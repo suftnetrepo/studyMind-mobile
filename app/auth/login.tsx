@@ -11,7 +11,6 @@ import { useColors, useIsDark, getFieldColors } from '../../src/constants'
 import { useAuth } from '../../src/hooks'
 
 const DEMOS = [
-  { role: 'Lecturer', icon: 'briefcase', email: 'lecturer@demo.ac.uk', password: 'Lecturer1234' },
   { role: 'Student',  icon: 'award',     email: 'student@demo.ac.uk',  password: 'Student1234'  },
 ] as const
 

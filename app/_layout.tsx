@@ -55,10 +55,16 @@ function RootLayout() {
         const { accessToken } = useAuthStore.getState()
         if (accessToken) {
           try {
-            const me = await authService.me()
-            useAuthStore.getState().setUser(me as any)
-            setMonitoringUser(me as any)
-            authed = true
+            const me = await authService.me() as any
+            if (me.role !== 'student') {
+              // Student-only app: clear any lecturer / self-learner / admin session left on the device
+              useAuthStore.getState().logout()
+              setMonitoringUser(null)
+            } else {
+              useAuthStore.getState().setUser(me)
+              setMonitoringUser(me)
+              authed = true
+            }
           } catch {
             // Token expired or invalid — clear it so the user is sent to login
             useAuthStore.getState().logout()
@@ -126,8 +132,6 @@ function RootLayout() {
             <Stack.Screen name="general-chat/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="writing-assistant/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="setup/student"      options={{ headerShown: false, animation: 'fade' }} />
-            <Stack.Screen name="setup/lecturer"     options={{ headerShown: false, animation: 'fade' }} />
-            <Stack.Screen name="setup/self-learner" options={{ headerShown: false, animation: 'fade' }} />
             <Stack.Screen name="setup/paste-text"   options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="help"    options={{ headerShown: false, animation: 'slide_from_right' }} />

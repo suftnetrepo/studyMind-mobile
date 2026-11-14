@@ -28,8 +28,6 @@ const SCREEN_NAMES: Record<string, string> = {
   '/privacy': 'Privacy',
   '/module/create': 'Create Module',
   '/setup/student': 'Setup Student',
-  '/setup/lecturer': 'Setup Lecturer',
-  '/setup/self-learner': 'Setup Self Learner',
   '/setup/paste-text': 'Paste Text',
 }
 

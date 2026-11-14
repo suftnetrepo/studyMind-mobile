@@ -94,10 +94,6 @@ export default function ModulesScreen() {
   const toast        = useToast()
   const dialogue     = useDialogue()
 
-  const isStudent = user?.role === 'student'
-  const canCreate = user?.role === 'lecturer' || user?.role === 'admin' || user?.role === 'self_learner'
-  // Institution join is a student/lecturer concept — self-learner release doesn't use it.
-  const canJoin   = user?.role === 'student'
 
   const filtered = modules.filter((m) => {
     if (filter === 'all') return true
@@ -190,8 +186,7 @@ export default function ModulesScreen() {
     actionSheet.show({
       title: 'Add module',
       items: [
-        ...(canCreate ? [{ icon: '📚', label: 'Create module', onPress: openCreateSheet }] : []),
-        ...(canJoin   ? [{ icon: '🔑', label: 'Join with code', onPress: openJoinSheet }]  : []),
+        { icon: '🔑', label: 'Join with code', onPress: openJoinSheet },
       ],
     })
   }
@@ -246,11 +241,7 @@ export default function ModulesScreen() {
               No {filter === 'all' ? '' : filter} modules yet
             </Text>
             <Text variant="body" color={C.textSecondary} textAlign="center">
-              {user?.role === 'student'
-                ? 'Tap + Join and enter the code your lecturer shared.'
-                : user?.role === 'self_learner'
-                ? 'Tap + New to create a course and add your study material.'
-                : 'Tap + New to create a module and upload materials.'}
+              Tap + Join and enter the code your lecturer shared.
             </Text>
           </Stack>
         )}
@@ -325,7 +316,7 @@ export default function ModulesScreen() {
 
       {/* Add: students join with a code; everyone else creates (or joins) */}
       <StyledPressable
-        onPress={isStudent ? openJoinSheet : openAddMenu}
+        onPress={openJoinSheet}
         width={58} height={58} borderRadius={29}
         backgroundColor={C.primary} alignItems="center" justifyContent="center"
         style={{
