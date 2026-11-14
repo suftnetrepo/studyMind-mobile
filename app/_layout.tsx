@@ -137,6 +137,7 @@ function RootLayout() {
             <Stack.Screen name="help"    options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="privacy" options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="module/create" options={{ presentation: 'modal', headerShown: false }} />
+            <Stack.Screen name="module/join" options={{ presentation: 'modal', headerShown: false }} />
             <Stack.Screen name="quiz/create" options={{ presentation: 'modal', headerShown: false }} />
             <Stack.Screen name="quiz/index"     options={{ headerShown: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="flashcards/create" options={{ presentation: 'modal', headerShown: false }} />

@@ -33,7 +33,7 @@ export default function CreateModuleScreen() {
     if (!t) return
     setBusy(true)
     try {
-      await moduleService.create({ title: t, course_code: courseCode.trim() || undefined })
+      await moduleService.create({ title: t, course_code: courseCode.trim() || undefined, access_type: 'personal' })
       await refetch(true)
       toast.success('Module created!', `${t} is ready.`)
       close()
@@ -94,7 +94,7 @@ export default function CreateModuleScreen() {
               </Stack>
             </Stack>
 
-            <Stack style={{ flex: 1 }} justifyContent="flex-end">
+            <Stack marginTop={4}>
               <LoadingButton
                 backgroundColor={title.trim() ? C.primary : C.bgMuted}
                 borderRadius={16} paddingVertical={17}
