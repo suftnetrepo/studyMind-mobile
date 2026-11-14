@@ -20,6 +20,7 @@ import { copyToClipboard, shareText, formatConversationForExport } from '../../s
 import { TypingDots } from '../../src/components/TypingDots'
 import { FontSizeButton } from '../../src/components/FontSizeButton'
 import { FontSizePopup } from '../../src/components/FontSizePopup'
+import { QuotaModal } from '../../src/components/QuotaModal'
 
 const MAX_MESSAGE_CHARS = 8000
 
@@ -43,7 +44,7 @@ export default function GeneralChatScreen() {
   const isDark  = useIsDark()
   const listRef = useRef<FlatList>(null)
   const inputRef = useRef<TextInput>(null)
-  const { messages, sending, complexity, setComplexity, send } = useGeneralChat()
+  const { messages, sending, complexity, setComplexity, send, quotaExceeded, clearQuotaExceeded } = useGeneralChat()
 
   const actionSheet = useActionSheet()
   const toast        = useToast()
@@ -498,6 +499,7 @@ export default function GeneralChatScreen() {
           </StyledPressable>
         </Stack>
       </KeyboardAvoidingView>
+      <QuotaModal visible={quotaExceeded} onClose={clearQuotaExceeded} />
     </StyledPage>
   )
 }

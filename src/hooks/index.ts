@@ -19,6 +19,7 @@ import { trackEvent } from '../services/analytics'
 import {
   authService, moduleService, chatService,
   quizService, flashcardService, summaryService,
+  QuotaExceededError,
 } from '../services/api'
 
 // ─── useAuth ──────────────────────────────────────────────────────────────────
@@ -298,6 +299,7 @@ export function useChat(moduleId?: string | null) {
   const [scopeMode, setScopeMode] = useState<ScopeMode>('everything')
   const [complexity, setComplexity] = useState<ComplexityLevel>('normal')
   const [sessions,  setSessions]  = useState<any[]>([])
+  const [quotaExceeded, setQuotaExceeded] = useState(false)
   const toast = useToast()
 
   const loadSessions = useCallback(async () => {
@@ -334,7 +336,11 @@ export function useChat(moduleId?: string | null) {
       setMessages((prev) => [...prev.filter((m) => m.id !== 'loading'), botMsg])
     } catch (e: any) {
       setMessages((prev) => prev.filter((m) => m.id !== 'loading'))
-      toast.error('Message failed', e.message || 'Could not reach the AI. Try again.')
+      if (e instanceof QuotaExceededError) {
+        setQuotaExceeded(true)
+      } else {
+        toast.error('Message failed', e.message || 'Could not reach the AI. Try again.')
+      }
     } finally {
       setSending(false)
     }
@@ -359,6 +365,7 @@ export function useChat(moduleId?: string | null) {
   return {
     messages, sending, scopeMode, setScopeMode, complexity, setComplexity,
     sessions, send, clearMessages, loadSession,
+    quotaExceeded, clearQuotaExceeded: () => setQuotaExceeded(false),
   }
 }
 
@@ -368,6 +375,7 @@ export function useGeneralChat() {
   const [sending,   setSending]   = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [complexity, setComplexity] = useState<ComplexityLevel>('normal')
+  const [quotaExceeded, setQuotaExceeded] = useState(false)
   const toast = useToast()
 
   const send = async (text: string) => {
@@ -385,13 +393,17 @@ export function useGeneralChat() {
       setMessages((prev) => [...prev.filter((m) => m.id !== 'loading'), botMsg])
     } catch (e: any) {
       setMessages((prev) => prev.filter((m) => m.id !== 'loading'))
-      toast.error('Message failed', e.message || 'Could not reach the AI. Try again.')
+      if (e instanceof QuotaExceededError) {
+        setQuotaExceeded(true)
+      } else {
+        toast.error('Message failed', e.message || 'Could not reach the AI. Try again.')
+      }
     } finally {
       setSending(false)
     }
   }
 
-  return { messages, sending, complexity, setComplexity, send }
+  return { messages, sending, complexity, setComplexity, send, quotaExceeded, clearQuotaExceeded: () => setQuotaExceeded(false) }
 }
 
 // ─── useQuiz ──────────────────────────────────────────────────────────────────
@@ -408,6 +420,7 @@ export function useQuiz(moduleId?: string | null) {
   const [submitting, setSubmitting] = useState(false)
   const [history,    setHistory]    = useState<any[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
+  const [quotaExceeded, setQuotaExceeded] = useState(false)
 
   const toast        = useToast()
   const dialogue     = useDialogue()
@@ -454,7 +467,11 @@ export function useQuiz(moduleId?: string | null) {
         theme:    'dark',
       })
     } catch (e: any) {
-      toast.error('Generation failed', e.message)
+      if (e instanceof QuotaExceededError) {
+        setQuotaExceeded(true)
+      } else {
+        toast.error('Generation failed', e.message)
+      }
     } finally {
       loader.hide(loadId)
       setGenerating(false)
@@ -588,6 +605,7 @@ export function useQuiz(moduleId?: string | null) {
     totalQuestions, progress, answered,
     results, generating, submitting, history, historyLoaded, refreshHistory: loadHistory,
     generate, answer, next, prev, submit, reset, openAttempt, deleteAttempt,
+    quotaExceeded, clearQuotaExceeded: () => setQuotaExceeded(false),
   }
 }
 
@@ -600,6 +618,7 @@ export function useFlashcards(moduleId?: string | null) {
   const [generating, setGenerating] = useState(false)
   const [updating,   setUpdating]   = useState(false)
   const [decksLoaded, setDecksLoaded] = useState(false)
+  const [quotaExceeded, setQuotaExceeded] = useState(false)
   const dialogue = useDialogue()
 
   const toast        = useToast()
@@ -643,7 +662,11 @@ export function useFlashcards(moduleId?: string | null) {
         theme:    'dark',
       })
     } catch (e: any) {
-      toast.error('Generation failed', e.message)
+      if (e instanceof QuotaExceededError) {
+        setQuotaExceeded(true)
+      } else {
+        toast.error('Generation failed', e.message)
+      }
     } finally {
       loader.hide(loadId)
       setGenerating(false)
@@ -753,6 +776,7 @@ export function useFlashcards(moduleId?: string | null) {
     masteredCount, totalCards, progressPct,
     generating, updating, decksLoaded, refreshDecks: loadDecks,
     generate, flip, prevCard, nextCard, updateCard, openDeck, closeDeck, deleteDeck,
+    quotaExceeded, clearQuotaExceeded: () => setQuotaExceeded(false),
   }
 }
 
@@ -764,6 +788,7 @@ export function useSummary(moduleId?: string | null) {
   const [summaries,  setSummaries]  = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
   const [loaded,     setLoaded]     = useState(false)
+  const [quotaExceeded, setQuotaExceeded] = useState(false)
   const dialogue = useDialogue()
 
   const toast        = useToast()
@@ -803,7 +828,11 @@ export function useSummary(moduleId?: string | null) {
         theme:    'dark',
       })
     } catch (e: any) {
-      toast.error('Generation failed', e.message)
+      if (e instanceof QuotaExceededError) {
+        setQuotaExceeded(true)
+      } else {
+        toast.error('Generation failed', e.message)
+      }
     } finally {
       loader.hide(loadId)
       setGenerating(false)
@@ -846,6 +875,7 @@ export function useSummary(moduleId?: string | null) {
   return {
     summary, summaries, generating, loaded, refreshSummaries: loadSummaries,
     generate, openSummary, closeSummary, deleteSummary,
+    quotaExceeded, clearQuotaExceeded: () => setQuotaExceeded(false),
   }
 }
 

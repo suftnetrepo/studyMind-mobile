@@ -1,5 +1,14 @@
 import { useAuthStore } from '../stores'
 
+// ─── Quota error ──────────────────────────────────────────────────────────
+/** Thrown when the backend returns 429 (server-side quota exhausted). */
+export class QuotaExceededError extends Error {
+  constructor(message = 'You have reached your usage limit.') {
+    super(message)
+    this.name = 'QuotaExceededError'
+  }
+}
+
 // ─── Server URL ───────────────────────────────────────────────────────────
 // Production default below. Override for local dev without editing code:
 // EXPO_PUBLIC_API_URL=http://192.168.x.x:8000
@@ -67,6 +76,7 @@ class ApiClient {
       if (!retry.ok) throw new Error(`GET ${path} → ${retry.status}`)
       return retry.json()
     }
+    if (res.status === 429) throw new QuotaExceededError()
     if (!res.ok) throw new Error(`GET ${path} → ${res.status}`)
     return res.json()
   }
@@ -91,6 +101,7 @@ class ApiClient {
       }
       return retry.json()
     }
+    if (res.status === 429) throw new QuotaExceededError()
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       throw new Error(err?.detail || `POST ${path} → ${res.status}`)
@@ -120,6 +131,7 @@ class ApiClient {
       }
       return retry.json()
     }
+    if (res.status === 429) throw new QuotaExceededError()
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       throw new Error(err?.detail || `POST ${path} → ${res.status}`)
@@ -182,6 +194,7 @@ export const authService = {
   deleteMe: () => api.delete('/api/auth/me'),
   updateMe: (full_name: string) => api.patch<any>('/api/auth/me', { full_name }),
   logout:   (refresh_token: string) => api.post('/api/auth/logout', { refresh_token }),
+  magicLink: () => api.post<{ token: string }>('/api/auth/magic-link'),
 }
 
 // ─── Modules ──────────────────────────────────────────────────────────────────

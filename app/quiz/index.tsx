@@ -19,6 +19,7 @@ import { useQuiz } from '../../src/hooks'
 import { useIsFocused } from '@react-navigation/native'
 import { takePendingQuiz } from '../../src/utils/quizBridge'
 import { shareText } from '../../src/utils/share'
+import { QuotaModal } from '../../src/components/QuotaModal'
 
 export default function QuizScreen() {
   const C      = useColors()
@@ -31,6 +32,7 @@ export default function QuizScreen() {
     progress, answers, results, generating, submitting,
     answer, next, prev, submit, reset,
     history, historyLoaded, openAttempt, deleteAttempt, refreshHistory,
+    quotaExceeded, clearQuotaExceeded,
   } = useQuiz(activeModuleId)
 
   const toast = useToast()
@@ -571,6 +573,7 @@ export default function QuizScreen() {
           </Stack>
         </ScrollView>
         <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
+        <QuotaModal visible={quotaExceeded} onClose={clearQuotaExceeded} />
       </StyledPage>
     )
   }

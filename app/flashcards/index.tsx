@@ -17,6 +17,7 @@ import { useModuleStore } from '../../src/stores'
 import { useFlashcards } from '../../src/hooks'
 import { useIsFocused } from '@react-navigation/native'
 import { takePendingDeck } from '../../src/utils/deckBridge'
+import { QuotaModal } from '../../src/components/QuotaModal'
 
 // Untitled decks default to "Flashcards — N cards" server-side — redundant
 // once we're already inside the Flashcards section, so strip it for display.
@@ -33,6 +34,7 @@ export default function FlashcardsScreen() {
     masteredCount, totalCards, progressPct,
     generating, updating, decksLoaded, refreshDecks,
     flip, prevCard, nextCard, updateCard, openDeck, closeDeck, deleteDeck,
+    quotaExceeded, clearQuotaExceeded,
   } = useFlashcards(activeModuleId)
   const [fontSizeOpen, setFontSizeOpen] = React.useState(false)
 
@@ -345,6 +347,7 @@ export default function FlashcardsScreen() {
 
       </StyledScrollView>
       <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
+      <QuotaModal visible={quotaExceeded} onClose={clearQuotaExceeded} />
     </StyledPage>
   )
 }
