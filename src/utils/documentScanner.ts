@@ -1,7 +1,6 @@
 import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin'
 import * as FileSystem from 'expo-file-system'
 import { chatService } from '../services/api'
-import { quotaGate, incrementQuota, remainingQuota } from './quota'
 
 // Native multi-page document scanner: VisionKit (VNDocumentCameraViewController)
 // on iOS, ML Kit on Android. Both give auto edge detection, auto-capture and
@@ -23,20 +22,16 @@ export const MAX_SCAN_PAGES = 20
  * pages were dropped over the cap, or null if out of quota or cancelled.
  */
 export async function scanPages(): Promise<{ pages: string[]; dropped: number } | null> {
-  if (!(await quotaGate('scan_image'))) return null
-  const remaining = await remainingQuota('scan_image')
-  const maxPages  = Math.min(MAX_SCAN_PAGES, remaining ?? MAX_SCAN_PAGES)
   const { scannedImages, status } = await DocumentScanner.scanDocument({
-    maxNumDocuments:     maxPages,   // Android only — VisionKit has no page limit
+    maxNumDocuments:     MAX_SCAN_PAGES,
     croppedImageQuality: 70,
     responseType:        ResponseType.ImageFilePath,
   })
   if (status === 'cancel' || !scannedImages?.length) return null
-  // VisionKit can't be capped, so trim here to keep OCR cost and quota bounded.
-  deleteScanPages(scannedImages.slice(maxPages))
+  deleteScanPages(scannedImages.slice(MAX_SCAN_PAGES))
   return {
-    pages:   scannedImages.slice(0, maxPages),
-    dropped: Math.max(0, scannedImages.length - maxPages),
+    pages:   scannedImages.slice(0, MAX_SCAN_PAGES),
+    dropped: Math.max(0, scannedImages.length - MAX_SCAN_PAGES),
   }
 }
 
@@ -73,7 +68,6 @@ export async function extractScanText(pageUris: string[]): Promise<string> {
   for (let i = 0; i < pageUris.length; i++) {
     const base64 = await FileSystem.readAsStringAsync(toFileUri(pageUris[i]), { encoding: FileSystem.EncodingType.Base64 })
     const { text } = await chatService.extractFromImage(base64, 'image/jpeg')
-    await incrementQuota('scan_image')
     if (!text?.trim()) continue
     parts.push(pageUris.length > 1 ? `--- Page ${i + 1} ---\n${text.trim()}` : text.trim())
   }

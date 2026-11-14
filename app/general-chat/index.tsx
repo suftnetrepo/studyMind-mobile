@@ -11,7 +11,6 @@ import {
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
 import { RichText } from '../../src/components/RichText'
-import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { useColors, useIsDark } from '../../src/constants'
 import { useGeneralChat, type ChatMessage, type ComplexityLevel } from '../../src/hooks'
 import { useDocumentScan } from '../../src/hooks/useDocumentScan'
@@ -20,7 +19,6 @@ import { copyToClipboard, shareText, formatConversationForExport } from '../../s
 import { TypingDots } from '../../src/components/TypingDots'
 import { FontSizeButton } from '../../src/components/FontSizeButton'
 import { FontSizePopup } from '../../src/components/FontSizePopup'
-import { QuotaModal } from '../../src/components/QuotaModal'
 
 const MAX_MESSAGE_CHARS = 8000
 
@@ -44,7 +42,7 @@ export default function GeneralChatScreen() {
   const isDark  = useIsDark()
   const listRef = useRef<FlatList>(null)
   const inputRef = useRef<TextInput>(null)
-  const { messages, sending, complexity, setComplexity, send, quotaExceeded, clearQuotaExceeded } = useGeneralChat()
+  const { messages, sending, complexity, setComplexity, send } = useGeneralChat()
 
   const actionSheet = useActionSheet()
   const toast        = useToast()
@@ -70,12 +68,10 @@ export default function GeneralChatScreen() {
   // ── Scan & Solve: photo → text ──────────────────────────────────────────────
   const processImage = async (asset: ImagePicker.ImagePickerAsset) => {
     if (!asset.base64) return
-    if (!(await quotaGate('scan_image'))) return
     const loadId = loader.show({ label: 'Reading image…', variant: 'dots' })
     setBusy(true)
     try {
       const extracted = await chatService.extractFromImage(asset.base64, asset.mimeType || 'image/jpeg')
-      await incrementQuota('scan_image')
       if (!extracted.text?.trim()) {
         toast.warning('No text found', 'Try again with the text in clear view.')
         return
@@ -499,7 +495,6 @@ export default function GeneralChatScreen() {
           </StyledPressable>
         </Stack>
       </KeyboardAvoidingView>
-      <QuotaModal visible={quotaExceeded} onClose={clearQuotaExceeded} />
     </StyledPage>
   )
 }

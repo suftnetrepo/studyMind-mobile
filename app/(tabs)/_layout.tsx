@@ -3,7 +3,6 @@ import { Tabs, router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { useColors } from '../../src/constants'
 import { useAuthStore, getSetupDone } from '../../src/stores'
-import { refreshEntitlement } from '../../src/services/premiumService'
 import { onboardingService } from '../../src/services/api'
 import { captureHandledError } from '../../src/services/monitoring'
 
@@ -20,13 +19,6 @@ const SETUP_ROUTES: Record<string, string> = {
 export default function TabsLayout() {
   const C = useColors()
   const user = useAuthStore((s) => s.user)
-
-  // Sync Plus entitlement from the backend on login and whenever the user
-  // comes back to the app (the subscription may have been activated on the web).
-  useEffect(() => {
-    if (!user?.id) return
-    refreshEntitlement().catch((error) => captureHandledError(error, 'premium.refresh_entitlement'))
-  }, [user?.id])
 
   // First launch after sign-in: send users who haven't set up their role to the right flow.
   useEffect(() => {

@@ -17,7 +17,6 @@ import { useModuleStore, useReaderFontStore } from '../../src/stores'
 import { useSummary } from '../../src/hooks'
 import { useIsFocused } from '@react-navigation/native'
 import { takePendingSummary } from '../../src/utils/summaryBridge'
-import { QuotaModal } from '../../src/components/QuotaModal'
 import { copyToClipboard, shareText, formatSummaryForExport } from '../../src/utils/share'
 
 const SCOPE_LABEL: Record<string, string> = { module: 'Full module', week: 'Current week', document: 'Latest document' }
@@ -62,7 +61,7 @@ export default function SummaryScreen() {
   const isDark = useIsDark()
   const { activeModuleId, activeCourseCode, activeModuleTitle } = useModuleStore()
 
-  const { summary, summaries, loaded, refreshSummaries, openSummary, closeSummary, deleteSummary, quotaExceeded, clearQuotaExceeded } = useSummary(activeModuleId)
+  const { summary, summaries, loaded, refreshSummaries, openSummary, closeSummary, deleteSummary } = useSummary(activeModuleId)
   const toast = useToast()
   const [fontSizeOpen, setFontSizeOpen] = React.useState(false)
   const readerScale = useReaderFontStore((s) => s.scale)
@@ -323,7 +322,6 @@ export default function SummaryScreen() {
 
       </StyledScrollView>
       <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
-      <QuotaModal visible={quotaExceeded} onClose={clearQuotaExceeded} />
     </StyledPage>
   )
 }

@@ -1,7 +1,6 @@
 import React from 'react'
-import { Platform, Linking } from 'react-native'
+import { Platform } from 'react-native'
 import { router } from 'expo-router'
-import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import * as StoreReview from 'expo-store-review'
 import {
@@ -10,10 +9,8 @@ import {
 import { Text } from '../../src/components/Text'
 import { useColors, useIsDark } from '../../src/constants'
 import { APP_VERSION } from '../../src/constants/app'
-import { useAuthStore, usePremiumStore, useThemeStore, type ThemeMode } from '../../src/stores'
+import { useAuthStore, useThemeStore, type ThemeMode } from '../../src/stores'
 import { useAuth } from '../../src/hooks'
-import { getQuotaStatus } from '../../src/utils/quota'
-import { authService } from '../../src/services/api'
 
 type Icon = keyof typeof Feather.glyphMap
 
@@ -23,43 +20,13 @@ const APPEARANCE: { mode: ThemeMode; label: string; icon: Icon }[] = [
   { mode: 'system', label: 'System', icon: 'smartphone' },
 ]
 
-const QUOTA_ROWS: { key: string; label: string; icon: Icon }[] = [
-  { key: 'chat',         label: 'AI Tutor',     icon: 'message-circle' },
-  { key: 'quiz',         label: 'Quiz',         icon: 'help-circle'    },
-  { key: 'flashcard',    label: 'Flashcards',   icon: 'credit-card'    },
-  { key: 'summary',      label: 'Summary',      icon: 'clipboard'      },
-  { key: 'general_chat', label: 'AI Assistant', icon: 'cpu'            },
-]
-
-const WEB_BILLING = 'https://studymind-web.onrender.com'
-
-async function openBilling(): Promise<void> {
-  try {
-    const { token } = await authService.magicLink()
-    const url = `${WEB_BILLING}/auth/magic?token=${encodeURIComponent(token)}&redirect=/billing`
-    await Linking.openURL(url)
-  } catch {
-    await Linking.openURL(`${WEB_BILLING}/billing`)
-  }
-}
-
 export default function SettingsScreen() {
   const C      = useColors()
   const isDark = useIsDark()
   const toast  = useToast()
   const user   = useAuthStore((s) => s.user)
-  const { isPremium } = usePremiumStore()
   const { mode, setMode } = useThemeStore()
   const { logout, deleteAccount } = useAuth()
-
-  const isSelfLearner = user?.role === 'self_learner'
-
-  const [quotaData, setQuotaData] = React.useState<Record<string, { used: number; limit: number }> | null>(null)
-  const isFocused = useIsFocused()
-  React.useEffect(() => {
-    if (!isSelfLearner || !isFocused) return
-    getQuotaStatus(true, isPremium).then(setQuotaData).catch(() => {})
-  }, [isSelfLearner, isPremium, isFocused])
 
   const rateApp = async () => {
     try {
@@ -73,7 +40,6 @@ export default function SettingsScreen() {
     }
   }
 
-  // A grouped list: one card, rows separated by hairlines.
   const Group = ({ children }: { children: React.ReactNode }) => (
     <StyledCard backgroundColor={C.bgCard} borderRadius={18}
       style={{ borderWidth: 1, borderColor: C.border, overflow: 'hidden' }}
@@ -124,72 +90,11 @@ export default function SettingsScreen() {
     >
       <StyledPage.Header.Full>
         <Stack marginHorizontal={20}>
-  
           <Text variant="title" color={C.textPrimary} fontWeight="800">Settings</Text>
         </Stack>
       </StyledPage.Header.Full>
 
       <StyledScrollView contentContainerStyle={{ padding: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-
-        {/* StudyMind Plus: self-learners only (students and lecturers are institution-funded) */}
-        {isSelfLearner && (
-          <StyledPressable onPress={openBilling}>
-            <StyledCard backgroundColor={C.bgCard} borderRadius={16} padding={16}
-              style={{ borderWidth: 1, borderColor: isPremium ? C.primary : C.border, marginBottom: 12 }}
-            >
-              <Stack horizontal alignItems="center" gap={12}>
-                <Stack width={40} height={40} borderRadius={12} backgroundColor={C.primaryBg}
-                  alignItems="center" justifyContent="center"
-                >
-                  <Feather name="star" size={18} color={C.primary} />
-                </Stack>
-                <Stack flex={1}>
-                  <Text variant="label" color={C.textPrimary} fontWeight="700">
-                    {isPremium ? 'StudyMind Plus' : 'Upgrade to Plus'}
-                  </Text>
-                  <Text variant="caption" color={C.textSecondary}>
-                    {isPremium
-                      ? 'Unlimited AI tools — manage your subscription'
-                      : 'Unlimited AI messages, quizzes and flashcards'}
-                  </Text>
-                </Stack>
-                <Feather name="external-link" size={16} color={C.textMuted} />
-              </Stack>
-            </StyledCard>
-          </StyledPressable>
-        )}
-
-        {isSelfLearner && !isPremium && quotaData && (
-              <StyledCard backgroundColor={C.bgCard} borderRadius={16} padding={16}
-                style={{ borderWidth: 1, borderColor: C.border }}
-              >
-                <Text variant="label" color={C.textPrimary} fontWeight="700" style={{ marginBottom: 12 }}>
-                  Free usage
-                </Text>
-                <Stack gap={12}>
-                  {QUOTA_ROWS.map(({ key, label, icon }) => {
-                    const q = quotaData[key]
-                    if (!q) return null
-                    const pct   = q.limit ? Math.min(100, (q.used / q.limit) * 100) : 0
-                    const color = pct >= 100 ? C.error : pct >= 70 ? C.warning : C.success
-                    return (
-                      <Stack key={key} gap={6}>
-                        <Stack horizontal alignItems="center" justifyContent="space-between">
-                          <Stack horizontal alignItems="center" gap={8}>
-                            <Feather name={icon} size={14} color={C.textSecondary} />
-                            <Text variant="caption" color={C.textSecondary}>{label}</Text>
-                          </Stack>
-                          <Text variant="caption" color={color} fontWeight="700">{q.used}/{q.limit}</Text>
-                        </Stack>
-                        <Stack height={5} backgroundColor={C.bgMuted} borderRadius={3} style={{ overflow: 'hidden' }}>
-                          <Stack height={5} borderRadius={3} backgroundColor={color} width={`${pct}%` as any} />
-                        </Stack>
-                      </Stack>
-                    )
-                  })}
-                </Stack>
-              </StyledCard>
-        )}
 
         <SectionTitle>Appearance</SectionTitle>
         <Stack horizontal gap={10}>
@@ -216,7 +121,6 @@ export default function SettingsScreen() {
           <Row icon="star" tone="sum" label="Rate Revvo" sub="Share your feedback" onPress={rateApp} last />
         </Group>
 
-        {/* Sign out — useAuth shows the confirm dialogue */}
         <StyledPressable
           onPress={logout} backgroundColor={C.errorBg}
           borderRadius={16} paddingVertical={16} style={{ borderWidth: 1, borderColor: `${C.error}30`, marginTop: 24 }}

@@ -10,7 +10,6 @@ import { LoadingButton } from '../../src/components/LoadingButton'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { quizService } from '../../src/services/api'
-import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { setPendingQuiz } from '../../src/utils/quizBridge'
 
 const Q_COUNTS = [5, 10, 15, 20] as const
@@ -39,12 +38,10 @@ export default function CreateQuizScreen() {
       toast.warning('No module selected', 'Open a module before creating a quiz.')
       return
     }
-    if (!(await quotaGate('quiz'))) return
     setBusy(true)
     try {
       const t = topic.trim()
       const res = await quizService.generate(activeModuleId, qCount, qType, t ? `${t} Quiz` : 'Module Quiz', t || undefined)
-      await incrementQuota('quiz')
       setPendingQuiz(res.id)
       close()
     } catch (e: any) {

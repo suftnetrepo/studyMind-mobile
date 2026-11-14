@@ -205,19 +205,3 @@ export const useModuleStore = create<ModuleState>((set) => ({
   }),
 }))
 
-// ─── Premium store ─────────────────────────────────────────────────────────────
-// Entitlement is owned by the backend (Stripe). plan is 'plus' | null.
-interface PremiumState {
-  isPremium: boolean
-  plan:      'plus' | null
-  hydrated:  boolean
-  setEntitlement: (isPremium: boolean, plan: 'plus' | null) => void
-}
-
-export const usePremiumStore = create<PremiumState>((set) => ({
-  isPremium: false,
-  plan:      null,
-  hydrated:  false,
-
-  setEntitlement: (isPremium, plan) => set({ isPremium, plan, hydrated: true }),
-}))

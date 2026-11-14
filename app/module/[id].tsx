@@ -11,7 +11,6 @@ import {
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
 import { ScreenHeader } from '../../src/components/ScreenHeader'
-import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { writeScanFile } from '../../src/utils/documentScanner'
 import { useDocumentScan } from '../../src/hooks/useDocumentScan'
 import { useColors, useIsDark, TOOLS } from '../../src/constants'
@@ -185,11 +184,9 @@ export default function ModuleDetailScreen() {
 
   const processScan = async (asset: ImagePicker.ImagePickerAsset) => {
     if (!asset.base64) return
-    if (!(await quotaGate('scan_image'))) return
     const loadId = loader.show({ label: 'Reading page…', variant: 'dots' })
     try {
       const { text } = await chatService.extractFromImage(asset.base64, asset.mimeType || 'image/jpeg')
-      await incrementQuota('scan_image')
       if (!text?.trim()) {
         toast.warning('No text found', 'Try again with the page in clear view.')
         return

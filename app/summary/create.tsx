@@ -10,7 +10,6 @@ import { LoadingButton } from '../../src/components/LoadingButton'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { summaryService } from '../../src/services/api'
-import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { setPendingSummary } from '../../src/utils/summaryBridge'
 
 type Scope = 'module' | 'week' | 'document'
@@ -40,11 +39,9 @@ export default function CreateSummaryScreen() {
       toast.warning('No module selected', 'Open a module before creating a summary.')
       return
     }
-    if (!(await quotaGate('summary'))) return
     setBusy(true)
     try {
       const res = await summaryService.generate(activeModuleId, scope, topic.trim() || undefined)
-      await incrementQuota('summary')
       setPendingSummary(res.id)
       close()
     } catch (e: any) {

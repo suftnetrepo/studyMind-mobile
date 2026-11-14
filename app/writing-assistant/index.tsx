@@ -18,10 +18,8 @@ import { FontSizeButton } from '../../src/components/FontSizeButton'
 import { FontSizePopup } from '../../src/components/FontSizePopup'
 import { useColors, useIsDark } from '../../src/constants'
 import { shareText } from '../../src/utils/share'
-import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { useDocumentScan } from '../../src/hooks/useDocumentScan'
-import { writingService, chatService, QuotaExceededError } from '../../src/services/api'
-import { QuotaModal } from '../../src/components/QuotaModal'
+import { writingService, chatService } from '../../src/services/api'
 
 type WritingMode = 'general' | 'outline' | 'essay' | 'modify'
 
@@ -74,7 +72,6 @@ export default function WritingAssistantScreen() {
   const [generating, setGenerating] = useState(false)
   const [sheetOpen,  setSheetOpen]  = useState(false)
   const [fontSizeOpen, setFontSizeOpen] = useState(false)
-  const [quotaExceeded, setQuotaExceeded] = useState(false)
 
   const [format,      setFormat]      = useState('General')
   const [tone,        setTone]        = useState('Auto')
@@ -89,7 +86,6 @@ export default function WritingAssistantScreen() {
       toast.warning('Enter some text', 'Type your topic or paste text to get started.')
       return
     }
-    if (!(await quotaGate('smart_writer'))) return
     setGenerating(true)
     setResult('')
     try {
@@ -104,15 +100,10 @@ export default function WritingAssistantScreen() {
         paragraphs:  mode === 'essay'   ? paragraphs  : undefined,
         modify_type: mode === 'modify'  ? modifyType  : undefined,
       })
-      await incrementQuota('smart_writer')
       setResult(res.content)
       setSheetOpen(true)
     } catch (e: any) {
-      if (e instanceof QuotaExceededError) {
-        setQuotaExceeded(true)
-      } else {
-        toast.error('Generation failed', e.message)
-      }
+      toast.error('Generation failed', e.message)
     } finally {
       setGenerating(false)
     }
@@ -135,13 +126,11 @@ export default function WritingAssistantScreen() {
         ? await ImagePicker.launchCameraAsync(options)
         : await ImagePicker.launchImageLibraryAsync(options)
       if (res.canceled || !res.assets[0]?.base64) return
-      if (!(await quotaGate('scan_image'))) return
       const asset  = res.assets[0]
       const loadId = loader.show({ label: 'Reading image…', variant: 'dots' })
       setBusy(true)
       try {
         const { text } = await chatService.extractFromImage(asset.base64!, asset.mimeType || 'image/jpeg')
-        await incrementQuota('scan_image')
         if (!text?.trim()) toast.warning('No text found', 'Try again with the text in clear view.')
         else appendInput(text)
       } finally {
@@ -542,7 +531,6 @@ export default function WritingAssistantScreen() {
         </Stack>
       </Modal>
       <FontSizePopup visible={fontSizeOpen} onClose={() => setFontSizeOpen(false)} />
-      <QuotaModal visible={quotaExceeded} onClose={() => setQuotaExceeded(false)} />
     </StyledPage>
   )
 }

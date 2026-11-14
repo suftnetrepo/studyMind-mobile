@@ -10,7 +10,6 @@ import { LoadingButton } from '../../src/components/LoadingButton'
 import { useColors, useIsDark } from '../../src/constants'
 import { useModuleStore } from '../../src/stores'
 import { flashcardService } from '../../src/services/api'
-import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { trackEvent } from '../../src/services/analytics'
 import { setPendingDeck } from '../../src/utils/deckBridge'
 
@@ -35,11 +34,9 @@ export default function CreateDeckScreen() {
       toast.warning('No module selected', 'Open a module before creating flashcards.')
       return
     }
-    if (!(await quotaGate('flashcard'))) return
     setBusy(true)
     try {
       const res = await flashcardService.generate(activeModuleId, maxCards, topic.trim() || undefined)
-      await incrementQuota('flashcard')
       trackEvent({ name: 'flashcard_created', params: { cards: res.card_count ?? maxCards } })
       setPendingDeck(res.id)
       close()

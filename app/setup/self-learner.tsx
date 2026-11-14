@@ -14,7 +14,6 @@ import { StepDots, HeroIcon } from '../../src/components/setup'
 import { useColors, useIsDark, getFieldColors } from '../../src/constants'
 import { moduleService, chatService } from '../../src/services/api'
 import { useAuthStore, useModuleStore, setSetupDone } from '../../src/stores'
-import { quotaGate, incrementQuota } from '../../src/utils/quota'
 import { writeScanFile } from '../../src/utils/documentScanner'
 import { useDocumentScan } from '../../src/hooks/useDocumentScan'
 
@@ -126,13 +125,11 @@ export default function SelfLearnerSetup() {
         ? await ImagePicker.launchCameraAsync(options)
         : await ImagePicker.launchImageLibraryAsync(options)
       if (res.canceled || !res.assets[0]?.base64) return
-      if (!(await quotaGate('scan_image'))) return
 
       const asset  = res.assets[0]
       const loadId = loader.show({ label: 'Reading document…', variant: 'dots' })
       try {
         const { text } = await chatService.extractFromImage(asset.base64!, asset.mimeType || 'image/jpeg')
-        await incrementQuota('scan_image')
         if (text.trim().length < 10) {
           toast.warning('No text found', 'Try again with the page in clear view.')
           return
@@ -183,11 +180,9 @@ export default function SelfLearnerSetup() {
       toast.warning('Enter a topic', 'Tell us what to generate study material about.')
       return
     }
-    if (!(await quotaGate('generate_material'))) return
     const loadId = loader.show({ label: 'Generating study material…', variant: 'dots' })
     try {
       await moduleService.generateMaterial(moduleId, topic.trim(), level, 'personal')
-      await incrementQuota('generate_material')
       setHasContent(true)
       toast.success('Study material ready!', 'AI has created your study guide.')
       setStep('ready')

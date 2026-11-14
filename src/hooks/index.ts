@@ -11,15 +11,12 @@ import { router } from 'expo-router'
 import {
   useToast, useDialogue, useNotification, useLoader,
 } from 'fluent-styles'
-import { useAuthStore, useModuleStore, usePremiumStore } from '../stores'
-import { clearEntitlement } from '../services/premiumService'
+import { useAuthStore, useModuleStore } from '../stores'
 import { addMonitoringBreadcrumb, captureHandledError, setMonitoringUser } from '../services/monitoring'
-import { quotaGate, incrementQuota } from '../utils/quota'
 import { trackEvent } from '../services/analytics'
 import {
   authService, moduleService, chatService,
   quizService, flashcardService, summaryService,
-  QuotaExceededError,
 } from '../services/api'
 
 // ─── useAuth ──────────────────────────────────────────────────────────────────
@@ -72,13 +69,7 @@ export function useAuth() {
       setMonitoringUser(me)
       addMonitoringBreadcrumb('auth.registration.succeeded', { role: me.role || role })
       toast.success('Account created!', `Welcome, ${me.full_name}`)
-      // Self-learners see the Pro offer once, straight after sign-up; "Continue free" takes them on to setup.
-      if (me.role === 'self_learner') {
-        addMonitoringBreadcrumb('paywall.shown', { source: 'signup' })
-        router.replace({ pathname: '/premium', params: { source: 'signup' } })
-      } else {
-        router.replace('/(tabs)')
-      }
+      router.replace('/(tabs)')
       return true
     } catch (e: any) {
       addMonitoringBreadcrumb('auth.registration.failed', { role })
@@ -106,8 +97,6 @@ export function useAuth() {
     }
     storeLogout()
     setMonitoringUser(null)
-    clearEntitlement()
-    usePremiumStore.getState().setEntitlement(false, null)
     router.replace('/auth/login')
   }
 
@@ -130,8 +119,6 @@ export function useAuth() {
     }
     storeLogout()
     setMonitoringUser(null)
-    clearEntitlement()
-    usePremiumStore.getState().setEntitlement(false, null)
     toast.success('Account deleted', 'Your data has been removed.')
     router.replace('/auth/login')
   }
@@ -299,7 +286,6 @@ export function useChat(moduleId?: string | null) {
   const [scopeMode, setScopeMode] = useState<ScopeMode>('everything')
   const [complexity, setComplexity] = useState<ComplexityLevel>('normal')
   const [sessions,  setSessions]  = useState<any[]>([])
-  const [quotaExceeded, setQuotaExceeded] = useState(false)
   const toast = useToast()
 
   const loadSessions = useCallback(async () => {
@@ -313,7 +299,6 @@ export function useChat(moduleId?: string | null) {
 
   const send = async (text: string) => {
     if (!text.trim() || sending) return
-    if (!(await quotaGate('chat'))) return
     setSending(true)
 
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: text }
@@ -325,7 +310,6 @@ export function useChat(moduleId?: string | null) {
         text, moduleId || undefined, sessionId || undefined, scopeMode, complexity,
       )
       if (!sessionId) setSessionId(res.session_id)
-      await incrementQuota('chat')
       const botMsg: ChatMessage = {
         id:      res.message_id,
         role:    'assistant',
@@ -336,11 +320,7 @@ export function useChat(moduleId?: string | null) {
       setMessages((prev) => [...prev.filter((m) => m.id !== 'loading'), botMsg])
     } catch (e: any) {
       setMessages((prev) => prev.filter((m) => m.id !== 'loading'))
-      if (e instanceof QuotaExceededError) {
-        setQuotaExceeded(true)
-      } else {
-        toast.error('Message failed', e.message || 'Could not reach the AI. Try again.')
-      }
+      toast.error('Message failed', e.message || 'Could not reach the AI. Try again.')
     } finally {
       setSending(false)
     }
@@ -365,7 +345,6 @@ export function useChat(moduleId?: string | null) {
   return {
     messages, sending, scopeMode, setScopeMode, complexity, setComplexity,
     sessions, send, clearMessages, loadSession,
-    quotaExceeded, clearQuotaExceeded: () => setQuotaExceeded(false),
   }
 }
 
@@ -375,35 +354,28 @@ export function useGeneralChat() {
   const [sending,   setSending]   = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [complexity, setComplexity] = useState<ComplexityLevel>('normal')
-  const [quotaExceeded, setQuotaExceeded] = useState(false)
   const toast = useToast()
 
   const send = async (text: string) => {
     if (!text.trim() || sending) return
-    if (!(await quotaGate('general_chat'))) return
     setSending(true)
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: text }
     const loadingMsg: ChatMessage = { id: 'loading', role: 'assistant', content: '', loading: true }
     setMessages((prev) => [...prev, userMsg, loadingMsg])
     try {
       const res = await chatService.sendGeneral(text, sessionId || undefined, complexity)
-      await incrementQuota('general_chat')
       if (!sessionId) setSessionId(res.session_id)
       const botMsg: ChatMessage = { id: res.message_id, role: 'assistant', content: res.answer }
       setMessages((prev) => [...prev.filter((m) => m.id !== 'loading'), botMsg])
     } catch (e: any) {
       setMessages((prev) => prev.filter((m) => m.id !== 'loading'))
-      if (e instanceof QuotaExceededError) {
-        setQuotaExceeded(true)
-      } else {
-        toast.error('Message failed', e.message || 'Could not reach the AI. Try again.')
-      }
+      toast.error('Message failed', e.message || 'Could not reach the AI. Try again.')
     } finally {
       setSending(false)
     }
   }
 
-  return { messages, sending, complexity, setComplexity, send, quotaExceeded, clearQuotaExceeded: () => setQuotaExceeded(false) }
+  return { messages, sending, complexity, setComplexity, send }
 }
 
 // ─── useQuiz ──────────────────────────────────────────────────────────────────
@@ -420,7 +392,6 @@ export function useQuiz(moduleId?: string | null) {
   const [submitting, setSubmitting] = useState(false)
   const [history,    setHistory]    = useState<any[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
-  const [quotaExceeded, setQuotaExceeded] = useState(false)
 
   const toast        = useToast()
   const dialogue     = useDialogue()
@@ -443,14 +414,12 @@ export function useQuiz(moduleId?: string | null) {
       toast.warning('No module selected', 'Open a module before generating a quiz.')
       return false
     }
-    if (!(await quotaGate('quiz'))) return false
     let ok = false
     setGenerating(true)
     const loadId = loader.show({ label: 'Generating quiz…', variant: 'dots' })
     try {
       const title = topic ? `${topic} Quiz` : 'Module Quiz'
       const res = await quizService.generate(moduleId, questionCount, questionType, title, topic)
-      await incrementQuota('quiz')
       setAttempt(res)
       setAnswers({})
       setCurrentIdx(0)
@@ -467,11 +436,7 @@ export function useQuiz(moduleId?: string | null) {
         theme:    'dark',
       })
     } catch (e: any) {
-      if (e instanceof QuotaExceededError) {
-        setQuotaExceeded(true)
-      } else {
-        toast.error('Generation failed', e.message)
-      }
+      toast.error('Generation failed', e.message)
     } finally {
       loader.hide(loadId)
       setGenerating(false)
@@ -481,7 +446,6 @@ export function useQuiz(moduleId?: string | null) {
 
   const answer = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }))
-    // Save as you go so the quiz can be resumed after leaving the screen.
     if (attempt) quizService.saveProgress(attempt.id, [{ question_id: questionId, answer: value }]).catch(() => {})
   }
 
@@ -504,7 +468,6 @@ export function useQuiz(moduleId?: string | null) {
         setCurrentIdx(firstOpen >= 0 ? firstOpen : 0)
         setResults(null)
         setPhase('taking')
-        // Resuming a half-finished quiz is not a new start.
         if (Object.keys(restored).length === 0) trackEvent({ name: 'quiz_started' })
       }
     } catch (e: any) {
@@ -582,7 +545,6 @@ export function useQuiz(moduleId?: string | null) {
     }
   }
 
-  // Back to the quiz list. In-progress answers are already saved, so nothing is lost.
   const reset = async () => {
     if (phase === 'taking' && Object.keys(answers).length > 0) {
       toast.info('Progress saved', 'Continue this quiz any time from your list.')
@@ -605,7 +567,6 @@ export function useQuiz(moduleId?: string | null) {
     totalQuestions, progress, answered,
     results, generating, submitting, history, historyLoaded, refreshHistory: loadHistory,
     generate, answer, next, prev, submit, reset, openAttempt, deleteAttempt,
-    quotaExceeded, clearQuotaExceeded: () => setQuotaExceeded(false),
   }
 }
 
@@ -618,7 +579,6 @@ export function useFlashcards(moduleId?: string | null) {
   const [generating, setGenerating] = useState(false)
   const [updating,   setUpdating]   = useState(false)
   const [decksLoaded, setDecksLoaded] = useState(false)
-  const [quotaExceeded, setQuotaExceeded] = useState(false)
   const dialogue = useDialogue()
 
   const toast        = useToast()
@@ -643,12 +603,10 @@ export function useFlashcards(moduleId?: string | null) {
       toast.warning('No module selected', 'Open a module first.')
       return
     }
-    if (!(await quotaGate('flashcard'))) return
     setGenerating(true)
     const loadId = loader.show({ label: 'Generating flashcards…', variant: 'dots' })
     try {
       const res = await flashcardService.generate(moduleId, maxCards, topic)
-      await incrementQuota('flashcard')
       setDeck(res)
       setCardIdx(0)
       setFlipped(false)
@@ -662,11 +620,7 @@ export function useFlashcards(moduleId?: string | null) {
         theme:    'dark',
       })
     } catch (e: any) {
-      if (e instanceof QuotaExceededError) {
-        setQuotaExceeded(true)
-      } else {
-        toast.error('Generation failed', e.message)
-      }
+      toast.error('Generation failed', e.message)
     } finally {
       loader.hide(loadId)
       setGenerating(false)
@@ -706,8 +660,6 @@ export function useFlashcards(moduleId?: string | null) {
         setCardIdx((n) => n + 1)
         setFlipped(false)
       } else {
-        // Deck complete
-        // Once per deck opening: re-rating the last card must not count again.
         if (completedDeckRef.current !== deck.id) {
           completedDeckRef.current = deck.id
           trackEvent({ name: 'study_session_completed', params: { type: 'flashcards' } })
@@ -776,7 +728,6 @@ export function useFlashcards(moduleId?: string | null) {
     masteredCount, totalCards, progressPct,
     generating, updating, decksLoaded, refreshDecks: loadDecks,
     generate, flip, prevCard, nextCard, updateCard, openDeck, closeDeck, deleteDeck,
-    quotaExceeded, clearQuotaExceeded: () => setQuotaExceeded(false),
   }
 }
 
@@ -788,7 +739,6 @@ export function useSummary(moduleId?: string | null) {
   const [summaries,  setSummaries]  = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
   const [loaded,     setLoaded]     = useState(false)
-  const [quotaExceeded, setQuotaExceeded] = useState(false)
   const dialogue = useDialogue()
 
   const toast        = useToast()
@@ -811,12 +761,10 @@ export function useSummary(moduleId?: string | null) {
       toast.warning('No module selected', 'Open a module first.')
       return
     }
-    if (!(await quotaGate('summary'))) return
     setGenerating(true)
     const loadId = loader.show({ label: 'Generating summary…', variant: 'dots' })
     try {
       const res = await summaryService.generate(moduleId, scope, topic)
-      await incrementQuota('summary')
       setSummary(res)
       await loadSummaries()
       notification.show({
@@ -828,11 +776,7 @@ export function useSummary(moduleId?: string | null) {
         theme:    'dark',
       })
     } catch (e: any) {
-      if (e instanceof QuotaExceededError) {
-        setQuotaExceeded(true)
-      } else {
-        toast.error('Generation failed', e.message)
-      }
+      toast.error('Generation failed', e.message)
     } finally {
       loader.hide(loadId)
       setGenerating(false)
@@ -875,8 +819,5 @@ export function useSummary(moduleId?: string | null) {
   return {
     summary, summaries, generating, loaded, refreshSummaries: loadSummaries,
     generate, openSummary, closeSummary, deleteSummary,
-    quotaExceeded, clearQuotaExceeded: () => setQuotaExceeded(false),
   }
 }
-
-export { usePremium } from './usePremium'
