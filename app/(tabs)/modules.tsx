@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Platform, TextInput, RefreshControl, KeyboardAvoidingView } from 'react-native'
+import { Platform, RefreshControl } from 'react-native'
 import { router } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
@@ -9,54 +9,10 @@ import {
   useActionSheet, useToast, useDialogue,
 } from 'fluent-styles'
 import { Text } from '../../src/components/Text'
-import { LoadingButton } from '../../src/components/LoadingButton'
 import { useColors, useIsDark, getModuleColors } from '../../src/constants'
 import { useModuleStore, useAuthStore } from '../../src/stores'
 import { useModules } from '../../src/hooks'
-import { api, moduleService } from '../../src/services/api'
-
-// ─── Join with code — small form rendered inside an action sheet ────────────
-function JoinCodeForm({
-  colors, submitting, onSubmit,
-}: {
-  colors: ReturnType<typeof useColors>
-  submitting: boolean
-  onSubmit: (code: string) => void
-}) {
-  const [code, setCode] = useState('')
-
-  return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Stack gap={12} paddingHorizontal={16} paddingBottom={4}>
-        <Stack
-          backgroundColor={colors.bgInput} borderRadius={14}
-          borderWidth={1} borderColor={colors.border}
-          paddingHorizontal={16} paddingVertical={12}
-        >
-          <TextInput
-            value={code}
-            onChangeText={setCode}
-            placeholder="Enter enrolment code"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            returnKeyType="done"
-            onSubmitEditing={() => code.trim() && onSubmit(code.trim())}
-            style={{ color: colors.textPrimary, fontSize: 16 }}
-          />
-        </Stack>
-        <LoadingButton
-          backgroundColor={code.trim() ? colors.primary : colors.bgMuted}
-          borderRadius={12} paddingVertical={13}
-          loading={submitting}
-          onPress={code.trim() ? () => onSubmit(code.trim()) : () => {}}
-          label="Join module" textVariant="label" fontWeight="700"
-          spinnerColor={code.trim() ? colors.white : colors.textMuted}
-        />
-      </Stack>
-    </KeyboardAvoidingView>
-  )
-}
+import { moduleService } from '../../src/services/api'
 
 type Filter = 'all' | 'active' | 'archived'
 const TABS: TabItem<Filter>[] = [
@@ -87,7 +43,6 @@ export default function ModulesScreen() {
   const { setActiveModule, activeModuleId, clearActiveModule } = useModuleStore()
   const user = useAuthStore((s) => s.user)
   const [filter, setFilter] = useState<Filter>('all')
-  const [submitting, setSubmitting] = useState(false)
 
   const actionSheet = useActionSheet()
   const toast        = useToast()
@@ -99,38 +54,7 @@ export default function ModulesScreen() {
     return m.status === filter
   })
 
-  const openJoinSheet = () => {
-    const sheetId = actionSheet.present(
-      <JoinCodeForm
-        colors={C}
-        submitting={submitting}
-        onSubmit={async (code) => {
-          setSubmitting(true)
-          try {
-            // A code may be an institution join code (e.g. DEMO2025) or a
-            // module enrolment code (e.g. CSC109) — try institution join
-            // first, then fall back to module enrolment on any failure
-            // (invalid code, or already a member of an institution).
-            try {
-              await api.post('/api/institutions/join', { code })
-              actionSheet.dismiss(sheetId)
-              toast.success('Joined!', 'You now have access to your institution.')
-            } catch {
-              await moduleService.enrolByCode(code)
-              actionSheet.dismiss(sheetId)
-              toast.success('Enrolled!', 'You now have access to this module.')
-            }
-            await refetch()
-          } catch (e: any) {
-            toast.error('Could not join', e.message || 'Check the code and try again.')
-          } finally {
-            setSubmitting(false)
-          }
-        }}
-      />,
-      { title: 'Join with code' },
-    )
-  }
+  const openJoinSheet = () => router.push('/module/join' as any)
 
   const openCreateSheet = () => router.push('/module/create' as any)
 

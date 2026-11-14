@@ -94,7 +94,7 @@ export default function CreateModuleScreen() {
               </Stack>
             </Stack>
 
-            <Stack style={{ flex: 1 }} justifyContent="flex-end">
+            <Stack marginTop={4}>
               <LoadingButton
                 backgroundColor={title.trim() ? C.primary : C.bgMuted}
                 borderRadius={16} paddingVertical={17}
