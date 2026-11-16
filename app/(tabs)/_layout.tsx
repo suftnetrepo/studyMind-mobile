@@ -4,7 +4,8 @@ import { Feather } from '@expo/vector-icons'
 import { useColors } from '../../src/constants'
 import { useAuthStore, getSetupDone } from '../../src/stores'
 import { onboardingService } from '../../src/services/api'
-import { captureHandledError } from '../../src/services/monitoring'
+import { captureHandledError, setMonitoringUser } from '../../src/services/monitoring'
+import { ensureAiConsent } from '../../src/services/aiConsent'
 
 const Icon = ({ name, color }: { name: keyof typeof Feather.glyphMap; color: string }) => (
   <Feather name={name} size={22} color={color} />
@@ -17,6 +18,21 @@ const SETUP_ROUTES: Record<string, string> = {
 export default function TabsLayout() {
   const C = useColors()
   const user = useAuthStore((s) => s.user)
+
+  // Before any AI feature is reachable, get consent to share content with OpenAI.
+  // Declining signs the user out: the app's features all depend on the AI backend.
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+    ;(async () => {
+      const ok = await ensureAiConsent()
+      if (cancelled || ok) return
+      useAuthStore.getState().logout()
+      setMonitoringUser(null)
+      router.replace('/auth/login' as any)
+    })()
+    return () => { cancelled = true }
+  }, [user?.id])
 
   // First launch after sign-in: send users who haven't set up their role to the right flow.
   useEffect(() => {

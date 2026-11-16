@@ -16,6 +16,8 @@ Technically ready to archive. Four things need a decision or action from you bef
 | 3 | **iPad** | `supportsTablet: true`, so App Store Connect requires iPad screenshots and the iPad layout must look right. The app is portrait phone UI. | Either test on an iPad simulator and take iPad screenshots, or set `supportsTablet: false` for 1.0 (simplest). |
 | 4 | **Reviewer demo account** | Apple must be able to sign in. | Create a student account with a module, documents and some AI history; put its login in App Store Connect → App Review Information (never in the repo). |
 
+Done on this branch: AI consent screen (#1), build number 2 (iPad stays enabled: this is an update to a live app, so keep iPad support). Still yours: #2 and #4.
+
 Also confirm: if 1.0.4 build 1 was already uploaded to TestFlight, the next upload needs **build 2** (build numbers must be unique per version).
 
 ## 2. Audit results
