@@ -69,7 +69,7 @@ export async function askAnalyticsConsent() {
     await ready
     if (decided) return
     Alert.alert(
-      'Help improve Revvo?',
+      'Help improve Ciquis?',
       'Share anonymous usage data (which screens and features are used) so we can improve the app. Your study material, answers and personal details are never included. You can change this any time in Privacy & terms.',
       [
         { text: 'Not now', style: 'cancel', onPress: () => { setAnalyticsEnabled(false) } },

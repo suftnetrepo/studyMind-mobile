@@ -26,7 +26,7 @@ export default function HelpScreen() {
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/settings' as any))
 
   const contact = async () => {
-    const subject = encodeURIComponent(`Revvo support (v${APP_VERSION})`)
+    const subject = encodeURIComponent(`Ciquis support (v${APP_VERSION})`)
     const body    = encodeURIComponent(`\n\n---\nAccount: ${user?.email ?? ''}\nPlatform: ${Platform.OS} ${Platform.Version}`)
     try {
       await Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`)

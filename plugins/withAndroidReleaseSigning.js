@@ -1,4 +1,4 @@
-// Signs release builds with the real Revvo upload keystore instead of the
+// Signs release builds with the real Ciquis upload keystore instead of the
 // debug key. The keystore and its passwords live in credentials/ (gitignored,
 // never committed) — this plugin only injects Groovy that reads that file at
 // build time, so no secret ever appears in this (committed) file. Falls back

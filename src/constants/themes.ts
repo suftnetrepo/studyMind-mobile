@@ -1,4 +1,4 @@
-// ─── Revvo theme palettes ─────────────────────────────────────────────
+// ─── Ciquis theme palettes ─────────────────────────────────────────────
 // Both palettes share the same keys — useColors() returns the right one
 // automatically based on the user's system or explicit preference.
 

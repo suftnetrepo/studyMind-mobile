@@ -1,4 +1,4 @@
-// ─── Revvo — Custom Hooks ─────────────────────────────────────────────
+// ─── Ciquis — Custom Hooks ─────────────────────────────────────────────
 // Architecture: Service → Hook → UI
 // No Alert, no native feedback. All feedback goes through:
 //   useToast      → success / error / warning / info banners
@@ -215,7 +215,7 @@ export function useModuleDetail(moduleId: string | null) {
       notification.show({
         title:  'Document indexed',
         body:   `${file.name} was uploaded and indexed successfully.`,
-        source: 'Revvo',
+        source: 'Ciquis',
         initials: '📄',
         timestamp: 'now',
         theme: 'dark',
@@ -438,7 +438,7 @@ export function useQuiz(moduleId?: string | null) {
       notification.show({
         title:    'Quiz ready!',
         body:     `${res.questions.length} questions generated from your materials.`,
-        source:   'Revvo',
+        source:   'Ciquis',
         initials: '📝',
         timestamp: 'now',
         theme:    'dark',
@@ -538,7 +538,7 @@ export function useQuiz(moduleId?: string | null) {
         notification.show({
           title:    `Great score — ${pct}%!`,
           body:     `${res.correct} of ${res.total} correct. Well done!`,
-          source:   'Revvo Quiz',
+          source:   'Ciquis Quiz',
           initials: '🎉',
           timestamp: 'now',
           theme:    'dark',
@@ -622,7 +622,7 @@ export function useFlashcards(moduleId?: string | null) {
       notification.show({
         title:    'Flashcards ready!',
         body:     `${res.card_count} cards generated from your materials.`,
-        source:   'Revvo',
+        source:   'Ciquis',
         initials: '🃏',
         timestamp: 'now',
         theme:    'dark',
@@ -675,7 +675,7 @@ export function useFlashcards(moduleId?: string | null) {
         notification.show({
           title:    'Deck complete! 🎉',
           body:     `You've reviewed all ${deck.card_count} cards. ${masteredCount} mastered.`,
-          source:   'Revvo',
+          source:   'Ciquis',
           initials: '🃏',
           timestamp: 'now',
           theme:    'dark',
@@ -778,7 +778,7 @@ export function useSummary(moduleId?: string | null) {
       notification.show({
         title:    'Summary ready!',
         body:     `AI summary generated from ${res.source_doc_count} documents.`,
-        source:   'Revvo',
+        source:   'Ciquis',
         initials: '📋',
         timestamp: 'now',
         theme:    'dark',

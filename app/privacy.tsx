@@ -16,7 +16,7 @@ const POINTS: { icon: Icon; title: string; body: string }[] = [
   { icon: 'file-text',  title: 'Your study material', body: 'Documents, pasted text and scanned pages you add are stored and indexed so the AI can answer from them. Personal material is visible only to you.' },
   { icon: 'cpu',        title: 'AI processing',       body: 'Your questions and the relevant passages are sent to our AI provider to write an answer. Photos and voice recordings are converted to text for the same purpose.' },
   { icon: 'smartphone', title: 'On your device',      body: 'Written notes, theme choice and free-usage counters are kept on your phone.' },
-  { icon: 'bar-chart-2', title: 'Usage analytics',     body: 'We count which screens and features are used (never your study material, answers or personal details) to improve Revvo. You can turn this off below.' },
+  { icon: 'bar-chart-2', title: 'Usage analytics',     body: 'We count which screens and features are used (never your study material, answers or personal details) to improve Ciquis. You can turn this off below.' },
   { icon: 'shield',     title: 'Your control',        body: 'You can edit your name in Profile and sign out at any time. To have your account and data deleted, contact support.' },
 ]
 
@@ -39,7 +39,7 @@ export default function PrivacyScreen() {
       statusBarStyle={isDark ? 'light-content' : 'dark-content'}
       statusBarBackgroundColor={Platform.OS === 'android' ? C.bg : undefined}
     >
-      <ScreenHeader title="Privacy & terms" subtitle="How Revvo handles your data" onBackPress={goBack} />
+      <ScreenHeader title="Privacy & terms" subtitle="How Ciquis handles your data" onBackPress={goBack} />
       <StyledScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 32 }}>
         <Stack gap={10}>
           {POINTS.map((p) => (

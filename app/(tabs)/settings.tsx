@@ -118,7 +118,7 @@ export default function SettingsScreen() {
         <Group>
           <Row icon="help-circle" tone="chat" label="Help & Support" sub="FAQs and contact us" onPress={() => router.push('/help' as any)} />
           <Row icon="lock" tone="flash" label="Privacy & terms" sub="How your data is handled" onPress={() => router.push('/privacy' as any)} />
-          <Row icon="star" tone="sum" label="Rate Revvo" sub="Share your feedback" onPress={rateApp} last />
+          <Row icon="star" tone="sum" label="Rate Ciquis" sub="Share your feedback" onPress={rateApp} last />
         </Group>
 
         <StyledPressable
@@ -141,7 +141,7 @@ export default function SettingsScreen() {
           >
             <Feather name="book-open" size={17} color={C.primary} />
           </Stack>
-          <Text variant="caption" color={C.textSecondary} fontWeight="700">Revvo v{APP_VERSION}</Text>
+          <Text variant="caption" color={C.textSecondary} fontWeight="700">Ciquis v{APP_VERSION}</Text>
           <Text variant="caption" color={C.textMuted}>Your AI-powered study assistant</Text>
         </Stack>
       </StyledScrollView>
